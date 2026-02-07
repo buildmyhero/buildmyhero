@@ -3,6 +3,9 @@ import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useCharacter } from "@/hooks/useCharacter";
+import { usePdfGeneration } from "@/hooks/usePdfGeneration";
+import { CharacterSheet } from "@/components/character/CharacterSheet";
+import { PortraitWithSkeleton } from "@/components/character/PortraitWithSkeleton";
 import { 
   Shield, Heart, Zap, Download, Printer, Trash2, 
   Sparkles, Sword, BookOpen, User, Scroll, ArrowLeft, Loader2
@@ -26,6 +29,7 @@ export default function CharacterDetailPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data: character, isLoading, error } = useCharacter(id);
+  const { isGenerating: isPdfGenerating, generatePdf } = usePdfGeneration();
 
   if (isLoading) {
     return (
@@ -67,13 +71,13 @@ export default function CharacterDetailPage() {
     window.print();
   };
 
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     if (!user) {
       toast.error("Please sign in to download PDFs");
       navigate("/signup");
       return;
     }
-    toast.info("PDF generation coming soon!");
+    await generatePdf(character);
   };
 
   const handleDelete = async () => {
@@ -110,20 +114,12 @@ export default function CharacterDetailPage() {
           <div className="space-y-6">
             {/* Portrait */}
             <div className="relative overflow-hidden rounded-2xl border border-border/50 shadow-card">
-              {character.portrait_url ? (
-                <img
-                  src={character.portrait_url}
-                  alt={character.character_name}
-                  className="w-full aspect-square object-cover"
-                />
-              ) : (
-                <div className="w-full aspect-square bg-gradient-card flex items-center justify-center">
-                  <div className="text-center">
-                    <Shield className="h-24 w-24 text-muted-foreground/50 mx-auto" />
-                    <p className="text-muted-foreground text-sm mt-2">Portrait coming soon</p>
-                  </div>
-                </div>
-              )}
+              <PortraitWithSkeleton
+                portraitUrl={character.portrait_url}
+                characterName={character.character_name}
+                characterId={character.id}
+                className="w-full aspect-square"
+              />
             </div>
 
             {/* Character Info */}
@@ -146,10 +142,19 @@ export default function CharacterDetailPage() {
                 variant="gold" 
                 className="w-full" 
                 onClick={handleDownloadPDF}
-                disabled={!canDownload}
+                disabled={!canDownload || isPdfGenerating}
               >
-                <Download className="mr-2 h-4 w-4" />
-                Download Character Sheet PDF
+                {isPdfGenerating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating PDF...
+                  </>
+                ) : (
+                  <>
+                    <Download className="mr-2 h-4 w-4" />
+                    Download Character Sheet PDF
+                  </>
+                )}
               </Button>
               
               <Button 
@@ -465,6 +470,11 @@ export default function CharacterDetailPage() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Hidden CharacterSheet for PDF generation */}
+        <div className="hidden print:block mt-8">
+          <CharacterSheet character={character} forPrint />
         </div>
       </div>
     </Layout>

@@ -130,7 +130,7 @@ JSON STRUCTURE:
     "eyes": "Eye color",
     "skin": "Skin description",
     "hair": "Hair description",
-    "description": "DETAILED physical description for AI art generation. Include race-specific features, clothing/armor appearance, weapon appearance, magical effects if any. 150+ words."
+    "visualDescription": "DETAILED physical description for AI art generation. Include race-specific features, distinctive markings, clothing/armor appearance with colors and materials, weapon appearance, magical effects, pose, expression, and atmosphere. Write as if describing a fantasy portrait painting. 200+ words minimum."
   },
   "backstory": "2-3 paragraph character backstory"
 }
@@ -155,6 +155,82 @@ EQUIPMENT SCALING BY LEVEL:
 - Levels 17-20: Very rare/legendary items, +3 weapons/armor
 
 Return ONLY the JSON object, nothing else.`;
+
+async function generatePortrait(
+  visualDescription: string,
+  characterName: string,
+  characterId: string,
+  supabase: any,
+  LOVABLE_API_KEY: string
+): Promise<string | null> {
+  try {
+    console.log('Starting portrait generation for:', characterName);
+    
+    const portraitPrompt = `Fantasy character portrait art, professional D&D character illustration. ${visualDescription}. High quality digital fantasy art, dramatic lighting, detailed face and upper body portrait, trending on artstation, painterly style.`;
+
+    const imageResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash-image',
+        messages: [
+          {
+            role: 'user',
+            content: portraitPrompt
+          }
+        ],
+        modalities: ['image', 'text']
+      }),
+    });
+
+    if (!imageResponse.ok) {
+      const errorText = await imageResponse.text();
+      console.error('Portrait generation API error:', imageResponse.status, errorText);
+      return null;
+    }
+
+    const imageData = await imageResponse.json();
+    const imageUrl = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+
+    if (!imageUrl) {
+      console.error('No image URL in response:', imageData);
+      return null;
+    }
+
+    // The image is base64 encoded, extract the data
+    const base64Data = imageUrl.replace(/^data:image\/\w+;base64,/, '');
+    const imageBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+
+    // Upload to Supabase Storage
+    const fileName = `${characterId}.png`;
+    const { error: uploadError } = await supabase.storage
+      .from('character-portraits')
+      .upload(fileName, imageBytes, {
+        contentType: 'image/png',
+        upsert: true
+      });
+
+    if (uploadError) {
+      console.error('Failed to upload portrait:', uploadError);
+      return null;
+    }
+
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('character-portraits')
+      .getPublicUrl(fileName);
+
+    console.log('Portrait uploaded successfully:', publicUrl);
+    return publicUrl;
+
+  } catch (error) {
+    console.error('Portrait generation error:', error);
+    return null;
+  }
+}
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -204,7 +280,7 @@ Generate a complete, playable character with all stats, equipment, features, and
 
     console.log('Generating character with concept:', concept, 'level:', level, 'ruleset:', ruleset);
 
-    // Call Lovable AI Gateway
+    // Call Lovable AI Gateway for character generation
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -295,8 +371,12 @@ Generate a complete, playable character with all stats, equipment, features, and
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Generate a UUID for the character
+    const characterId = crypto.randomUUID();
+
     // Prepare the character data for storage
     const characterRecord = {
+      id: characterId,
       character_name: characterData.name,
       character_class: characterData.class,
       level: characterData.level || level,
@@ -333,7 +413,7 @@ Generate a complete, playable character with all stats, equipment, features, and
 
     console.log('Saving character to database:', characterRecord.character_name);
 
-    // Insert into database
+    // Insert into database first (so user gets immediate feedback)
     const { data: savedCharacter, error: dbError } = await supabase
       .from('characters')
       .insert(characterRecord)
@@ -350,10 +430,45 @@ Generate a complete, playable character with all stats, equipment, features, and
 
     console.log('Character saved successfully with ID:', savedCharacter.id);
 
+    // Generate portrait in background (don't block the response)
+    const visualDescription = characterData.appearance?.visualDescription || 
+                              characterData.appearance?.description ||
+                              `A ${characterData.race} ${characterData.class} named ${characterData.name}`;
+    
+    // Start portrait generation asynchronously
+    EdgeRuntime.waitUntil((async () => {
+      try {
+        const portraitUrl = await generatePortrait(
+          visualDescription,
+          characterData.name,
+          savedCharacter.id,
+          supabase,
+          LOVABLE_API_KEY
+        );
+
+        if (portraitUrl) {
+          // Update character with portrait URL
+          const { error: updateError } = await supabase
+            .from('characters')
+            .update({ portrait_url: portraitUrl })
+            .eq('id', savedCharacter.id);
+
+          if (updateError) {
+            console.error('Failed to update character with portrait URL:', updateError);
+          } else {
+            console.log('Character portrait updated successfully');
+          }
+        }
+      } catch (error) {
+        console.error('Background portrait generation error:', error);
+      }
+    })());
+
     return new Response(
       JSON.stringify({ 
         success: true, 
-        character: savedCharacter 
+        character: savedCharacter,
+        portraitGenerating: true
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

@@ -1,22 +1,32 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { CharacterCard } from "@/components/character/CharacterCard";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserCharacters } from "@/hooks/useCharacter";
+import { usePdfGeneration } from "@/hooks/usePdfGeneration";
 import { Plus, Loader2, Library } from "lucide-react";
+import { Character } from "@/types/character";
 
 export default function LibraryPage() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { data: characters, isLoading, error } = useUserCharacters();
+  const { isGenerating, generatePdf } = usePdfGeneration();
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
       navigate("/login");
     }
   }, [user, authLoading, navigate]);
+
+  const handleDownload = async (character: Character) => {
+    setDownloadingId(character.id);
+    await generatePdf(character);
+    setDownloadingId(null);
+  };
 
   if (authLoading || isLoading) {
     return (
@@ -87,7 +97,13 @@ export default function LibraryPage() {
         {characters && characters.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {characters.map((character) => (
-              <CharacterCard key={character.id} character={character} />
+              <CharacterCard 
+                key={character.id} 
+                character={character}
+                showDownload={true}
+                onDownload={() => handleDownload(character)}
+                isDownloading={downloadingId === character.id}
+              />
             ))}
           </div>
         )}
