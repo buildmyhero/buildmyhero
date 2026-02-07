@@ -1,15 +1,48 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
-import { placeholderCharacter } from "@/data/placeholder-character";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { useAuth } from "@/hooks/useAuth";
-import { Shield, Heart, Zap, Eye, Sparkles, ArrowRight } from "lucide-react";
+import { useCharacter } from "@/hooks/useCharacter";
+import { Shield, Heart, Zap, Eye, Sparkles, ArrowRight, Loader2 } from "lucide-react";
 
 export default function CharacterPreviewPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
-  const character = placeholderCharacter; // Using placeholder for now
+  const { data: character, isLoading, error } = useCharacter(id);
+
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="h-12 w-12 text-primary mx-auto mb-4 animate-spin" />
+            <p className="text-muted-foreground">Loading your character...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (error || !character) {
+    return (
+      <Layout>
+        <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4">
+          <div className="text-center max-w-md">
+            <Shield className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+            <h1 className="font-display text-2xl font-bold mb-2">Character Not Found</h1>
+            <p className="text-muted-foreground mb-6">
+              This character doesn't exist or has been deleted.
+            </p>
+            <Link to="/">
+              <Button variant="gold">Create a New Character</Button>
+            </Link>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   const stats = character.character_data;
 
@@ -19,7 +52,7 @@ export default function CharacterPreviewPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
           {/* Left Column - Character Info */}
           <div className="space-y-6 animate-fade-in">
-            {/* Portrait */}
+            {/* Portrait Placeholder */}
             <div className="relative overflow-hidden rounded-2xl border border-border/50 shadow-card">
               {character.portrait_url ? (
                 <img
@@ -28,8 +61,11 @@ export default function CharacterPreviewPage() {
                   className="w-full aspect-square object-cover"
                 />
               ) : (
-                <div className="w-full aspect-square bg-muted flex items-center justify-center">
-                  <Shield className="h-24 w-24 text-muted-foreground/50" />
+                <div className="w-full aspect-square bg-gradient-card flex items-center justify-center">
+                  <div className="text-center">
+                    <Shield className="h-24 w-24 text-muted-foreground/50 mx-auto mb-4" />
+                    <p className="text-muted-foreground">Portrait coming soon</p>
+                  </div>
                 </div>
               )}
               
@@ -55,17 +91,17 @@ export default function CharacterPreviewPage() {
             <div className="grid grid-cols-3 gap-4">
               <div className="bg-gradient-card rounded-xl border border-border/50 p-4 text-center">
                 <Heart className="h-6 w-6 text-destructive mx-auto mb-2" />
-                <p className="text-2xl font-bold">{stats.hitPoints.maximum}</p>
+                <p className="text-2xl font-bold">{stats.hitPoints?.maximum || '—'}</p>
                 <p className="text-xs text-muted-foreground">Hit Points</p>
               </div>
               <div className="bg-gradient-card rounded-xl border border-border/50 p-4 text-center">
                 <Shield className="h-6 w-6 text-primary mx-auto mb-2" />
-                <p className="text-2xl font-bold">{stats.armorClass}</p>
+                <p className="text-2xl font-bold">{stats.armorClass || '—'}</p>
                 <p className="text-xs text-muted-foreground">Armor Class</p>
               </div>
               <div className="bg-gradient-card rounded-xl border border-border/50 p-4 text-center">
                 <Zap className="h-6 w-6 text-gold mx-auto mb-2" />
-                <p className="text-2xl font-bold">+{stats.proficiencyBonus}</p>
+                <p className="text-2xl font-bold">+{stats.proficiencyBonus || 2}</p>
                 <p className="text-xs text-muted-foreground">Proficiency</p>
               </div>
             </div>
@@ -74,44 +110,56 @@ export default function CharacterPreviewPage() {
             <div className="bg-gradient-card rounded-xl border border-border/50 p-6">
               <h3 className="font-display text-lg font-semibold mb-4">Ability Scores</h3>
               <div className="grid grid-cols-6 gap-2 text-center">
-                {Object.entries(stats.abilityScores).map(([ability, score]) => (
-                  <div key={ability} className="space-y-1">
-                    <p className="text-xs uppercase text-muted-foreground">
-                      {ability.slice(0, 3)}
-                    </p>
-                    <p className="text-xl font-bold">{score}</p>
-                    <p className="text-xs text-muted-foreground">
-                      ({stats.abilityModifiers[ability as keyof typeof stats.abilityModifiers] >= 0 ? '+' : ''}
-                      {stats.abilityModifiers[ability as keyof typeof stats.abilityModifiers]})
-                    </p>
-                  </div>
-                ))}
+                {stats.abilityScores && Object.entries(stats.abilityScores).map(([ability, score]) => {
+                  const modifier = stats.abilityModifiers?.[ability as keyof typeof stats.abilityModifiers] || 0;
+                  return (
+                    <div key={ability} className="space-y-1">
+                      <p className="text-xs uppercase text-muted-foreground">
+                        {ability.slice(0, 3)}
+                      </p>
+                      <p className="text-xl font-bold">{score}</p>
+                      <p className="text-xs text-muted-foreground">
+                        ({modifier >= 0 ? '+' : ''}{modifier})
+                      </p>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
             {/* Features Preview */}
-            <div className="bg-gradient-card rounded-xl border border-border/50 p-6">
-              <h3 className="font-display text-lg font-semibold mb-4">Features</h3>
-              <ul className="space-y-2">
-                {stats.features.slice(0, 3).map((feature) => (
-                  <li key={feature.name} className="flex items-start gap-2">
-                    <Sparkles className="h-4 w-4 text-gold mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="font-medium">{feature.name}</p>
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {feature.description}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-              <Link 
-                to={`/character/${character.id}`}
-                className="inline-flex items-center gap-1 text-sm text-primary hover:underline mt-4"
-              >
-                <Eye className="h-4 w-4" />
-                View full character sheet
-              </Link>
+            {stats.features && stats.features.length > 0 && (
+              <div className="bg-gradient-card rounded-xl border border-border/50 p-6">
+                <h3 className="font-display text-lg font-semibold mb-4">Features</h3>
+                <ul className="space-y-2">
+                  {stats.features.slice(0, 3).map((feature, index) => (
+                    <li key={index} className="flex items-start gap-2">
+                      <Sparkles className="h-4 w-4 text-gold mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="font-medium">{feature.name}</p>
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {feature.description}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                {stats.features.length > 3 && (
+                  <Link 
+                    to={`/character/${character.id}`}
+                    className="inline-flex items-center gap-1 text-sm text-primary hover:underline mt-4"
+                  >
+                    <Eye className="h-4 w-4" />
+                    View all {stats.features.length} features
+                  </Link>
+                )}
+              </div>
+            )}
+
+            {/* Concept */}
+            <div className="parchment-texture rounded-xl p-6 text-parchment-foreground">
+              <h3 className="font-display text-lg font-semibold mb-2">Original Concept</h3>
+              <p className="text-sm italic">"{character.concept}"</p>
             </div>
           </div>
 

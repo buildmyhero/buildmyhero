@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -13,6 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Wand2, Sparkles, Loader2 } from "lucide-react";
 import { Ruleset } from "@/types/character";
+import { useCharacterGeneration } from "@/hooks/useCharacterGeneration";
 
 const placeholderExamples = [
   "A spooky swamp witch who talks to frogs",
@@ -23,22 +23,16 @@ const placeholderExamples = [
 ];
 
 export function CharacterGeneratorForm() {
-  const navigate = useNavigate();
   const [concept, setConcept] = useState("");
   const [level, setLevel] = useState("3");
   const [ruleset, setRuleset] = useState<Ruleset>("2024");
-  const [isGenerating, setIsGenerating] = useState(false);
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
+  
+  const { isGenerating, generateCharacter } = useCharacterGeneration();
 
   const handleGenerate = async () => {
     if (!concept.trim()) return;
-    
-    setIsGenerating(true);
-    
-    // Simulate generation delay then redirect to placeholder
-    setTimeout(() => {
-      navigate(`/generate/placeholder-${Date.now()}`);
-    }, 500);
+    await generateCharacter(concept, parseInt(level), ruleset);
   };
 
   const cyclePlaceholder = () => {
@@ -62,11 +56,13 @@ export function CharacterGeneratorForm() {
                 placeholder={placeholderExamples[placeholderIndex]}
                 className="min-h-[120px] text-lg bg-muted/50 border-border/50 focus:border-primary resize-none"
                 onFocus={cyclePlaceholder}
+                disabled={isGenerating}
               />
               <button
                 type="button"
                 onClick={cyclePlaceholder}
                 className="absolute bottom-3 right-3 text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                disabled={isGenerating}
               >
                 <Sparkles className="h-3 w-3" />
                 Try another idea
@@ -82,7 +78,7 @@ export function CharacterGeneratorForm() {
             {/* Level Selector */}
             <div className="space-y-2">
               <Label htmlFor="level" className="font-display">Level</Label>
-              <Select value={level} onValueChange={setLevel}>
+              <Select value={level} onValueChange={setLevel} disabled={isGenerating}>
                 <SelectTrigger className="bg-muted/50 border-border/50">
                   <SelectValue placeholder="Select level" />
                 </SelectTrigger>
@@ -103,6 +99,7 @@ export function CharacterGeneratorForm() {
                 value={ruleset}
                 onValueChange={(value) => setRuleset(value as Ruleset)}
                 className="flex gap-4"
+                disabled={isGenerating}
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="2024" id="ruleset-2024" />
@@ -131,7 +128,7 @@ export function CharacterGeneratorForm() {
             {isGenerating ? (
               <>
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Generating...
+                Creating Your Hero...
               </>
             ) : (
               <>
@@ -140,6 +137,12 @@ export function CharacterGeneratorForm() {
               </>
             )}
           </Button>
+          
+          {isGenerating && (
+            <p className="text-sm text-center text-muted-foreground animate-pulse">
+              This usually takes 15-30 seconds. We're crafting something special!
+            </p>
+          )}
         </div>
       </div>
     </div>
