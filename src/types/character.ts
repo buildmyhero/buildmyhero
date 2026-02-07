@@ -121,8 +121,11 @@ export interface CharacterData {
     skin: string;
     hair: string;
     description: string;
+    visualDescription?: string;
   };
   backstory: string;
+  alignment?: string;
+  subclass?: string | null;
 }
 
 export interface Character {

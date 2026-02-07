@@ -4,13 +4,17 @@ import { Button } from "@/components/ui/button";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { useAuth } from "@/hooks/useAuth";
 import { useCharacter } from "@/hooks/useCharacter";
-import { Shield, Heart, Zap, Eye, Sparkles, ArrowRight, Loader2 } from "lucide-react";
+import { usePdfGeneration } from "@/hooks/usePdfGeneration";
+import { CharacterSheet } from "@/components/character/CharacterSheet";
+import { PortraitWithSkeleton } from "@/components/character/PortraitWithSkeleton";
+import { Shield, Heart, Zap, Eye, Sparkles, ArrowRight, Loader2, Download } from "lucide-react";
 
 export default function CharacterPreviewPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data: character, isLoading, error } = useCharacter(id);
+  const { isGenerating: isPdfGenerating, generatePdf } = usePdfGeneration();
 
   if (isLoading) {
     return (
@@ -46,28 +50,28 @@ export default function CharacterPreviewPage() {
 
   const stats = character.character_data;
 
+  const handleDownloadPdf = async () => {
+    if (!user) {
+      navigate("/signup");
+      return;
+    }
+    await generatePdf(character);
+  };
+
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
           {/* Left Column - Character Info */}
           <div className="space-y-6 animate-fade-in">
-            {/* Portrait Placeholder */}
+            {/* Portrait */}
             <div className="relative overflow-hidden rounded-2xl border border-border/50 shadow-card">
-              {character.portrait_url ? (
-                <img
-                  src={character.portrait_url}
-                  alt={character.character_name}
-                  className="w-full aspect-square object-cover"
-                />
-              ) : (
-                <div className="w-full aspect-square bg-gradient-card flex items-center justify-center">
-                  <div className="text-center">
-                    <Shield className="h-24 w-24 text-muted-foreground/50 mx-auto mb-4" />
-                    <p className="text-muted-foreground">Portrait coming soon</p>
-                  </div>
-                </div>
-              )}
+              <PortraitWithSkeleton
+                portraitUrl={character.portrait_url}
+                characterName={character.character_name}
+                characterId={character.id}
+                className="w-full aspect-square"
+              />
               
               {/* Overlay with name */}
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background to-transparent p-6">
@@ -184,6 +188,25 @@ export default function CharacterPreviewPage() {
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </Link>
+                  <Button 
+                    variant="purple" 
+                    className="w-full" 
+                    size="lg"
+                    onClick={handleDownloadPdf}
+                    disabled={isPdfGenerating}
+                  >
+                    {isPdfGenerating ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Generating PDF...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="mr-2 h-4 w-4" />
+                        Download PDF
+                      </>
+                    )}
+                  </Button>
                   <Link to="/library">
                     <Button variant="outline" className="w-full" size="lg">
                       Go to Library
@@ -221,6 +244,11 @@ export default function CharacterPreviewPage() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Full Character Sheet (hidden, used for PDF generation) */}
+        <div className="mt-12 print:mt-0" id="character-sheet-wrapper">
+          <CharacterSheet character={character} />
         </div>
       </div>
     </Layout>

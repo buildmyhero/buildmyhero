@@ -1,31 +1,36 @@
 import { Link } from "react-router-dom";
 import { Character } from "@/types/character";
-import { Shield, Heart, Sword } from "lucide-react";
+import { Shield, Heart, Download, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PortraitWithSkeleton } from "./PortraitWithSkeleton";
 
 interface CharacterCardProps {
   character: Character;
+  showDownload?: boolean;
+  onDownload?: () => void;
+  isDownloading?: boolean;
 }
 
-export function CharacterCard({ character }: CharacterCardProps) {
+export function CharacterCard({ 
+  character, 
+  showDownload = false, 
+  onDownload, 
+  isDownloading = false 
+}: CharacterCardProps) {
   return (
-    <Link to={`/character/${character.id}`} className="block group">
-      <div className="relative overflow-hidden rounded-xl border border-border/50 bg-gradient-card transition-all duration-300 hover:scale-[1.02] hover:shadow-glow hover:border-primary/50">
+    <div className="relative overflow-hidden rounded-xl border border-border/50 bg-gradient-card transition-all duration-300 hover:shadow-glow hover:border-primary/50 group">
+      <Link to={`/character/${character.id}`} className="block">
         {/* Portrait */}
         <div className="aspect-[3/4] overflow-hidden">
-          {character.portrait_url ? (
-            <img
-              src={character.portrait_url}
-              alt={character.character_name}
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-            />
-          ) : (
-            <div className="w-full h-full bg-muted flex items-center justify-center">
-              <Shield className="h-16 w-16 text-muted-foreground/50" />
-            </div>
-          )}
+          <PortraitWithSkeleton
+            portraitUrl={character.portrait_url}
+            characterName={character.character_name}
+            characterId={character.id}
+            className="w-full h-full transition-transform duration-500 group-hover:scale-110"
+          />
           
           {/* Overlay gradient */}
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent pointer-events-none" />
         </div>
 
         {/* Info */}
@@ -56,7 +61,30 @@ export function CharacterCard({ character }: CharacterCardProps) {
             {character.ruleset}
           </span>
         </div>
-      </div>
-    </Link>
+      </Link>
+
+      {/* Download Button (appears on hover) */}
+      {showDownload && onDownload && (
+        <div className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button
+            size="sm"
+            variant="secondary"
+            className="h-8 w-8 p-0"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onDownload();
+            }}
+            disabled={isDownloading}
+          >
+            {isDownloading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
