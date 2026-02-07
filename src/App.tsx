@@ -8,7 +8,6 @@ import HomePage from "@/pages/HomePage";
 import LoginPage from "@/pages/LoginPage";
 import SignupPage from "@/pages/SignupPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
-import GeneratePage from "@/pages/GeneratePage";
 import CharacterPreviewPage from "@/pages/CharacterPreviewPage";
 import CharacterDetailPage from "@/pages/CharacterDetailPage";
 import LibraryPage from "@/pages/LibraryPage";
@@ -26,7 +25,6 @@ const App = () => (
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="/generate/:id" element={<GeneratePage />} />
             <Route path="/character/:id/preview" element={<CharacterPreviewPage />} />
             <Route path="/character/:id" element={<CharacterDetailPage />} />
             <Route path="/library" element={<LibraryPage />} />
