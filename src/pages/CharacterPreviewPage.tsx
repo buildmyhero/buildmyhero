@@ -1,20 +1,29 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { useAuth } from "@/hooks/useAuth";
-import { useCharacter } from "@/hooks/useCharacter";
+import { useCharacterRealtime } from "@/hooks/useCharacter";
 import { usePdfGeneration } from "@/hooks/usePdfGeneration";
+import { usePlayGuidePdf } from "@/hooks/usePlayGuidePdf";
+import { useSendCharacterEmail } from "@/hooks/useSendCharacterEmail";
 import { CharacterSheet } from "@/components/character/CharacterSheet";
 import { PortraitWithSkeleton } from "@/components/character/PortraitWithSkeleton";
-import { Shield, Heart, Zap, Eye, Sparkles, ArrowRight, Loader2, Download } from "lucide-react";
+import { GenerationProgress } from "@/components/character/GenerationProgress";
+import { Shield, Heart, Zap, Eye, Sparkles, ArrowRight, Loader2, Download, BookOpen, Mail } from "lucide-react";
 
 export default function CharacterPreviewPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { data: character, isLoading, error } = useCharacter(id);
+  const { data: character, isLoading, error } = useCharacterRealtime(id);
   const { isGenerating: isPdfGenerating, generatePdf } = usePdfGeneration();
+  const { isGenerating: isPlayGuidePdfGenerating, generatePlayGuidePdf } = usePlayGuidePdf();
+  const { isSending: isEmailSending, sendEmail } = useSendCharacterEmail();
+  const [guestEmail, setGuestEmail] = useState("");
+  const [emailSent, setEmailSent] = useState(false);
 
   if (isLoading) {
     return (
@@ -48,6 +57,18 @@ export default function CharacterPreviewPage() {
     );
   }
 
+  // Show generation progress if still generating
+  if (character.status === 'generating') {
+    return (
+      <Layout>
+        <GenerationProgress 
+          progress={character.generation_progress} 
+          characterName={character.character_name !== 'Generating...' ? character.character_name : undefined}
+        />
+      </Layout>
+    );
+  }
+
   const stats = character.character_data;
 
   const handleDownloadPdf = async () => {
@@ -56,6 +77,31 @@ export default function CharacterPreviewPage() {
       return;
     }
     await generatePdf(character);
+  };
+
+  const handleDownloadPlayGuide = async () => {
+    if (!user) {
+      navigate("/signup");
+      return;
+    }
+    if (character.play_guide_content) {
+      await generatePlayGuidePdf({
+        characterName: character.character_name,
+        characterClass: character.character_class,
+        race: character.race,
+        level: character.level,
+        playGuideContent: character.play_guide_content,
+      });
+    }
+  };
+
+  const handleSendGuestEmail = async () => {
+    if (guestEmail && id) {
+      const success = await sendEmail(id, guestEmail);
+      if (success) {
+        setEmailSent(true);
+      }
+    }
   };
 
   return (
@@ -203,10 +249,31 @@ export default function CharacterPreviewPage() {
                     ) : (
                       <>
                         <Download className="mr-2 h-4 w-4" />
-                        Download PDF
+                        Download Character Sheet
                       </>
                     )}
                   </Button>
+                  {character.play_guide_content && (
+                    <Button 
+                      variant="outline" 
+                      className="w-full" 
+                      size="lg"
+                      onClick={handleDownloadPlayGuide}
+                      disabled={isPlayGuidePdfGenerating}
+                    >
+                      {isPlayGuidePdfGenerating ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Generating PDF...
+                        </>
+                      ) : (
+                        <>
+                          <BookOpen className="mr-2 h-4 w-4" />
+                          Download Play Guide
+                        </>
+                      )}
+                    </Button>
+                  )}
                   <Link to="/library">
                     <Button variant="outline" className="w-full" size="lg">
                       Go to Library
@@ -220,7 +287,7 @@ export default function CharacterPreviewPage() {
                 </div>
               </div>
             ) : (
-              <div className="sticky top-24">
+              <div className="sticky top-24 space-y-6">
                 <div className="text-center mb-6">
                   <Sparkles className="h-12 w-12 text-gold mx-auto mb-4 animate-float" />
                   <h2 className="font-display text-2xl font-bold mb-2">
@@ -233,7 +300,46 @@ export default function CharacterPreviewPage() {
                 
                 <AuthForm mode="signup" redirectTo={`/character/${id}`} />
                 
-                <div className="text-center mt-6">
+                {/* Guest Email Capture */}
+                {!emailSent ? (
+                  <div className="bg-gradient-card rounded-xl border border-border/50 p-6">
+                    <h3 className="font-display text-lg font-semibold mb-2 flex items-center gap-2">
+                      <Mail className="h-5 w-5 text-gold" />
+                      Get it emailed to you
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Enter your email to receive this character sheet (no account required)
+                    </p>
+                    <div className="flex gap-2">
+                      <Input
+                        type="email"
+                        placeholder="your@email.com"
+                        value={guestEmail}
+                        onChange={(e) => setGuestEmail(e.target.value)}
+                        className="flex-1"
+                      />
+                      <Button 
+                        variant="gold"
+                        onClick={handleSendGuestEmail}
+                        disabled={isEmailSending || !guestEmail}
+                      >
+                        {isEmailSending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          'Send'
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-6 text-center">
+                    <p className="text-green-400 font-medium">
+                      ✓ Character emailed! Check your inbox.
+                    </p>
+                  </div>
+                )}
+                
+                <div className="text-center">
                   <Link 
                     to={`/character/${character.id}`}
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors"

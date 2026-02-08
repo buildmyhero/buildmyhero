@@ -6,6 +6,7 @@ import { CharacterCard } from "@/components/character/CharacterCard";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserCharacters } from "@/hooks/useCharacter";
 import { usePdfGeneration } from "@/hooks/usePdfGeneration";
+import { usePlayGuidePdf } from "@/hooks/usePlayGuidePdf";
 import { Plus, Loader2, Library } from "lucide-react";
 import { Character } from "@/types/character";
 
@@ -13,8 +14,10 @@ export default function LibraryPage() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { data: characters, isLoading, error } = useUserCharacters();
-  const { isGenerating, generatePdf } = usePdfGeneration();
-  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const { isGenerating: isSheetGenerating, generatePdf } = usePdfGeneration();
+  const { isGenerating: isPlayGuideGenerating, generatePlayGuidePdf } = usePlayGuidePdf();
+  const [downloadingSheetId, setDownloadingSheetId] = useState<string | null>(null);
+  const [downloadingPlayGuideId, setDownloadingPlayGuideId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -22,10 +25,24 @@ export default function LibraryPage() {
     }
   }, [user, authLoading, navigate]);
 
-  const handleDownload = async (character: Character) => {
-    setDownloadingId(character.id);
+  const handleDownloadSheet = async (character: Character) => {
+    setDownloadingSheetId(character.id);
     await generatePdf(character);
-    setDownloadingId(null);
+    setDownloadingSheetId(null);
+  };
+
+  const handleDownloadPlayGuide = async (character: Character) => {
+    if (!character.play_guide_content) return;
+    
+    setDownloadingPlayGuideId(character.id);
+    await generatePlayGuidePdf({
+      characterName: character.character_name,
+      characterClass: character.character_class,
+      race: character.race,
+      level: character.level,
+      playGuideContent: character.play_guide_content,
+    });
+    setDownloadingPlayGuideId(null);
   };
 
   if (authLoading || isLoading) {
@@ -101,8 +118,10 @@ export default function LibraryPage() {
                 key={character.id} 
                 character={character}
                 showDownload={true}
-                onDownload={() => handleDownload(character)}
-                isDownloading={downloadingId === character.id}
+                onDownloadSheet={() => handleDownloadSheet(character)}
+                onDownloadPlayGuide={() => handleDownloadPlayGuide(character)}
+                isDownloadingSheet={downloadingSheetId === character.id}
+                isDownloadingPlayGuide={downloadingPlayGuideId === character.id}
               />
             ))}
           </div>

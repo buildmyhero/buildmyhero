@@ -1,14 +1,17 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useCharacter } from "@/hooks/useCharacter";
 import { usePdfGeneration } from "@/hooks/usePdfGeneration";
+import { usePlayGuidePdf } from "@/hooks/usePlayGuidePdf";
 import { CharacterSheet } from "@/components/character/CharacterSheet";
 import { PortraitWithSkeleton } from "@/components/character/PortraitWithSkeleton";
+import { PlayGuidePreview } from "@/components/character/PlayGuidePreview";
 import { 
   Shield, Heart, Zap, Download, Printer, Trash2, 
-  Sparkles, Sword, BookOpen, User, Scroll, ArrowLeft, Loader2
+  Sparkles, Sword, BookOpen, User, Scroll, ArrowLeft, Loader2, ChevronDown, ChevronUp
 } from "lucide-react";
 import {
   AlertDialog,
@@ -30,6 +33,8 @@ export default function CharacterDetailPage() {
   const { user } = useAuth();
   const { data: character, isLoading, error } = useCharacter(id);
   const { isGenerating: isPdfGenerating, generatePdf } = usePdfGeneration();
+  const { isGenerating: isPlayGuidePdfGenerating, generatePlayGuidePdf } = usePlayGuidePdf();
+  const [showPlayGuide, setShowPlayGuide] = useState(false);
 
   if (isLoading) {
     return (
@@ -157,15 +162,39 @@ export default function CharacterDetailPage() {
                 )}
               </Button>
               
-              <Button 
-                variant="purple" 
-                className="w-full" 
-                onClick={handleDownloadPDF}
-                disabled={!canDownload}
-              >
-                <BookOpen className="mr-2 h-4 w-4" />
-                Download Play Guide PDF
-              </Button>
+              {character.play_guide_content && (
+                <Button 
+                  variant="purple" 
+                  className="w-full" 
+                  onClick={async () => {
+                    if (!user) {
+                      toast.error("Please sign in to download PDFs");
+                      navigate("/signup");
+                      return;
+                    }
+                    await generatePlayGuidePdf({
+                      characterName: character.character_name,
+                      characterClass: character.character_class,
+                      race: character.race,
+                      level: character.level,
+                      playGuideContent: character.play_guide_content!,
+                    });
+                  }}
+                  disabled={!canDownload || isPlayGuidePdfGenerating}
+                >
+                  {isPlayGuidePdfGenerating ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Generating PDF...
+                    </>
+                  ) : (
+                    <>
+                      <BookOpen className="mr-2 h-4 w-4" />
+                      Download Play Guide PDF
+                    </>
+                  )}
+                </Button>
+              )}
               
               <Button 
                 variant="outline" 
@@ -467,6 +496,31 @@ export default function CharacterDetailPage() {
               <div className="parchment-texture rounded-xl p-6 text-parchment-foreground">
                 <h3 className="font-display text-lg font-semibold mb-4">Backstory</h3>
                 <p className="text-sm leading-relaxed whitespace-pre-line">{stats.backstory}</p>
+              </div>
+            )}
+
+            {/* Play Guide Preview */}
+            {character.play_guide_content && (
+              <div className="bg-gradient-card rounded-xl border border-border/50 overflow-hidden">
+                <button
+                  onClick={() => setShowPlayGuide(!showPlayGuide)}
+                  className="w-full p-6 flex items-center justify-between hover:bg-muted/30 transition-colors"
+                >
+                  <h3 className="font-display text-lg font-semibold flex items-center gap-2">
+                    <BookOpen className="h-5 w-5 text-gold" />
+                    Play Guide Preview
+                  </h3>
+                  {showPlayGuide ? (
+                    <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                  )}
+                </button>
+                {showPlayGuide && (
+                  <div className="px-6 pb-6">
+                    <PlayGuidePreview content={character.play_guide_content} />
+                  </div>
+                )}
               </div>
             )}
           </div>

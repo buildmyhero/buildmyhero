@@ -156,6 +156,44 @@ EQUIPMENT SCALING BY LEVEL:
 
 Return ONLY the JSON object, nothing else.`;
 
+const PLAY_GUIDE_PROMPT = `You are an expert D&D dungeon master helping a player understand how to play their new character effectively.
+
+Based on the provided character data, generate a comprehensive play guide with these sections:
+
+## COMBAT TACTICS
+- Optimal combat strategy for this character
+- Best use of abilities, spells, and features in combat
+- Positioning and movement tactics
+- What to do in different combat scenarios (single enemy, multiple enemies, boss fights)
+- Synergies between abilities
+- Action economy optimization (action, bonus action, reaction usage)
+
+## ROLEPLAY GUIDE
+- How to portray this character's personality
+- Voice and mannerisms suggestions
+- How to play their ideals, bonds, and flaws
+- Relationship dynamics with party members
+- Character development arcs and growth opportunities
+- Example dialogue and reactions to common scenarios
+
+## LEVELING ROADMAP
+For each level from current to 20:
+- Recommended ability score improvements at each ASI level
+- Feat recommendations with explanations
+- Spell selections for upcoming levels (if spellcaster)
+- Multiclass suggestions if beneficial (explain why/why not)
+- Key power spikes and what unlocks at each level
+- Equipment upgrade priorities
+
+## TIPS FOR NEW PLAYERS
+(Include this section only for levels 1-3)
+- Basic D&D mechanics explained
+- How to read your character sheet
+- Common beginner mistakes to avoid
+- Helpful resources for learning more
+
+Return well-formatted markdown text with clear headers (use ##) and bullet points. Be specific and actionable.`;
+
 async function generatePortrait(
   visualDescription: string,
   characterName: string,
@@ -232,6 +270,80 @@ async function generatePortrait(
   }
 }
 
+async function generatePlayGuide(
+  characterData: any,
+  characterName: string,
+  LOVABLE_API_KEY: string
+): Promise<string | null> {
+  try {
+    console.log('Starting play guide generation for:', characterName);
+    
+    const userPrompt = `Generate a comprehensive play guide for this D&D 5e character:
+
+CHARACTER DATA:
+${JSON.stringify(characterData, null, 2)}
+
+Create a detailed, actionable play guide that will help the player understand how to play this character effectively in both combat and roleplay situations.`;
+
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-3-flash-preview',
+        messages: [
+          { role: 'system', content: PLAY_GUIDE_PROMPT },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 6000,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Play guide generation API error:', response.status, errorText);
+      return null;
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+
+    if (!content) {
+      console.error('No content in play guide response');
+      return null;
+    }
+
+    console.log('Play guide generated successfully');
+    return content;
+
+  } catch (error) {
+    console.error('Play guide generation error:', error);
+    return null;
+  }
+}
+
+async function updateProgress(
+  supabase: any, 
+  characterId: string, 
+  progress: number, 
+  status: 'generating' | 'complete' | 'error' = 'generating'
+) {
+  const { error } = await supabase
+    .from('characters')
+    .update({ 
+      generation_progress: progress,
+      status: status
+    })
+    .eq('id', characterId);
+  
+  if (error) {
+    console.error('Failed to update progress:', error);
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -272,6 +384,43 @@ serve(async (req) => {
       );
     }
 
+    // Create Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Generate a UUID for the character and create initial record
+    const characterId = crypto.randomUUID();
+
+    // Create initial character record with generating status
+    const initialRecord = {
+      id: characterId,
+      character_name: 'Generating...',
+      character_class: 'Unknown',
+      level: level,
+      race: 'Unknown',
+      ruleset: ruleset,
+      concept: concept,
+      character_data: {},
+      is_guest: true,
+      user_id: null,
+      portrait_url: null,
+      status: 'generating',
+      generation_progress: 5,
+    };
+
+    const { error: insertError } = await supabase
+      .from('characters')
+      .insert(initialRecord);
+
+    if (insertError) {
+      console.error('Failed to create initial record:', insertError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to start character generation' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const userPrompt = `Create a D&D 5e character for the ${ruleset} ruleset at level ${level}.
 
 Character concept: "${concept}"
@@ -279,6 +428,9 @@ Character concept: "${concept}"
 Generate a complete, playable character with all stats, equipment, features, and backstory. Make sure the character fits the concept creatively while being mechanically sound.`;
 
     console.log('Generating character with concept:', concept, 'level:', level, 'ruleset:', ruleset);
+
+    // Update progress: Analyzing concept
+    await updateProgress(supabase, characterId, 15);
 
     // Call Lovable AI Gateway for character generation
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -301,6 +453,9 @@ Generate a complete, playable character with all stats, equipment, features, and
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
       console.error('AI Gateway error:', aiResponse.status, errorText);
+      
+      // Update status to error
+      await updateProgress(supabase, characterId, 0, 'error');
       
       if (aiResponse.status === 429) {
         return new Response(
@@ -327,16 +482,19 @@ Generate a complete, playable character with all stats, equipment, features, and
 
     if (!content) {
       console.error('No content in AI response:', aiData);
+      await updateProgress(supabase, characterId, 0, 'error');
       return new Response(
         JSON.stringify({ error: 'AI returned empty response. Please try again.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    // Update progress: Rolling ability scores
+    await updateProgress(supabase, characterId, 30);
+
     // Parse the JSON from the AI response
     let characterData;
     try {
-      // Try to extract JSON from the response (handle potential markdown code blocks)
       let jsonStr = content.trim();
       if (jsonStr.startsWith('```json')) {
         jsonStr = jsonStr.slice(7);
@@ -351,6 +509,7 @@ Generate a complete, playable character with all stats, equipment, features, and
       characterData = JSON.parse(jsonStr);
     } catch (parseError) {
       console.error('Failed to parse AI response as JSON:', parseError, 'Content:', content);
+      await updateProgress(supabase, characterId, 0, 'error');
       return new Response(
         JSON.stringify({ error: 'Failed to parse character data. Please try again.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -360,29 +519,22 @@ Generate a complete, playable character with all stats, equipment, features, and
     // Validate required fields
     if (!characterData.name || !characterData.race || !characterData.class) {
       console.error('Missing required character fields:', characterData);
+      await updateProgress(supabase, characterId, 0, 'error');
       return new Response(
         JSON.stringify({ error: 'Generated character is missing required fields. Please try again.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Create Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Generate a UUID for the character
-    const characterId = crypto.randomUUID();
+    // Update progress: Selecting equipment
+    await updateProgress(supabase, characterId, 50);
 
     // Prepare the character data for storage
     const characterRecord = {
-      id: characterId,
       character_name: characterData.name,
       character_class: characterData.class,
       level: characterData.level || level,
       race: characterData.race,
-      ruleset: ruleset,
-      concept: concept,
       character_data: {
         abilityScores: characterData.abilityScores,
         abilityModifiers: characterData.abilityModifiers,
@@ -406,17 +558,17 @@ Generate a complete, playable character with all stats, equipment, features, and
         alignment: characterData.alignment,
         subclass: characterData.subclass,
       },
-      is_guest: true,
-      user_id: null,
-      portrait_url: null,
+      status: 'generating',
+      generation_progress: 55,
     };
 
-    console.log('Saving character to database:', characterRecord.character_name);
+    console.log('Updating character in database:', characterRecord.character_name);
 
-    // Insert into database first (so user gets immediate feedback)
+    // Update the character record
     const { data: savedCharacter, error: dbError } = await supabase
       .from('characters')
-      .insert(characterRecord)
+      .update(characterRecord)
+      .eq('id', characterId)
       .select()
       .single();
 
@@ -430,14 +582,18 @@ Generate a complete, playable character with all stats, equipment, features, and
 
     console.log('Character saved successfully with ID:', savedCharacter.id);
 
-    // Generate portrait in background (don't block the response)
+    // Start background tasks for portrait and play guide generation
     const visualDescription = characterData.appearance?.visualDescription || 
                               characterData.appearance?.description ||
                               `A ${characterData.race} ${characterData.class} named ${characterData.name}`;
     
-    // Start portrait generation asynchronously
+    // Background tasks: Portrait + Play Guide generation
     EdgeRuntime.waitUntil((async () => {
       try {
+        // Update progress: Generating portrait
+        await updateProgress(supabase, characterId, 60);
+
+        // Generate portrait
         const portraitUrl = await generatePortrait(
           visualDescription,
           characterData.name,
@@ -447,20 +603,68 @@ Generate a complete, playable character with all stats, equipment, features, and
         );
 
         if (portraitUrl) {
-          // Update character with portrait URL
-          const { error: updateError } = await supabase
+          await supabase
             .from('characters')
-            .update({ portrait_url: portraitUrl })
+            .update({ portrait_url: portraitUrl, generation_progress: 70 })
             .eq('id', savedCharacter.id);
-
-          if (updateError) {
-            console.error('Failed to update character with portrait URL:', updateError);
-          } else {
-            console.log('Character portrait updated successfully');
-          }
+          console.log('Character portrait updated successfully');
+        } else {
+          await updateProgress(supabase, characterId, 70);
         }
+
+        // Update progress: Generating play guide
+        await updateProgress(supabase, characterId, 75);
+
+        // Generate play guide
+        const playGuideContent = await generatePlayGuide(
+          {
+            name: characterData.name,
+            race: characterData.race,
+            class: characterData.class,
+            subclass: characterData.subclass,
+            level: characterData.level || level,
+            background: characterData.background,
+            abilityScores: characterData.abilityScores,
+            features: characterData.features,
+            spellcasting: characterData.spellcasting,
+            equipment: characterData.equipment,
+            personality: characterData.personality,
+            alignment: characterData.alignment,
+          },
+          characterData.name,
+          LOVABLE_API_KEY
+        );
+
+        if (playGuideContent) {
+          await supabase
+            .from('characters')
+            .update({ 
+              play_guide_content: playGuideContent,
+              generation_progress: 95 
+            })
+            .eq('id', savedCharacter.id);
+          console.log('Play guide generated successfully');
+        } else {
+          await updateProgress(supabase, characterId, 95);
+        }
+
+        // Mark as complete
+        await supabase
+          .from('characters')
+          .update({ 
+            status: 'complete',
+            generation_progress: 100 
+          })
+          .eq('id', savedCharacter.id);
+        
+        console.log('Character generation complete');
+
       } catch (error) {
-        console.error('Background portrait generation error:', error);
+        console.error('Background generation error:', error);
+        await supabase
+          .from('characters')
+          .update({ status: 'complete', generation_progress: 100 })
+          .eq('id', savedCharacter.id);
       }
     })());
 
@@ -468,7 +672,8 @@ Generate a complete, playable character with all stats, equipment, features, and
       JSON.stringify({ 
         success: true, 
         character: savedCharacter,
-        portraitGenerating: true
+        portraitGenerating: true,
+        playGuideGenerating: true
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

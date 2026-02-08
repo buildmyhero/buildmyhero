@@ -141,12 +141,18 @@ export interface Character {
   portrait_url: string | null;
   character_sheet_pdf_url: string | null;
   play_guide_pdf_url: string | null;
+  play_guide_content: string | null;
   is_guest: boolean;
   created_at: string;
   updated_at: string;
+  status: 'generating' | 'complete' | 'error';
+  generation_progress: number;
+  email_sent: boolean;
+  email_requested: boolean;
 }
 
 export type Ruleset = '2014' | '2024';
+export type GenerationStatus = 'generating' | 'complete' | 'error';
 
 export interface GenerationFormData {
   concept: string;
