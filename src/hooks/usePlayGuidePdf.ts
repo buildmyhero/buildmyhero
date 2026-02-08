@@ -1,0 +1,181 @@
+import { useState } from 'react';
+import { jsPDF } from 'jspdf';
+import { toast } from 'sonner';
+
+interface PlayGuideOptions {
+  characterName: string;
+  characterClass: string;
+  race: string;
+  level: number;
+  playGuideContent: string;
+}
+
+export function usePlayGuidePdf() {
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const generatePlayGuidePdf = async (options: PlayGuideOptions): Promise<void> => {
+    setIsGenerating(true);
+    
+    try {
+      const { characterName, characterClass, race, level, playGuideContent } = options;
+      
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = 210;
+      const pageHeight = 297;
+      const margin = 20;
+      const contentWidth = pageWidth - (margin * 2);
+      let yPosition = margin;
+
+      // Helper function to add a new page if needed
+      const checkPageBreak = (neededHeight: number) => {
+        if (yPosition + neededHeight > pageHeight - margin) {
+          pdf.addPage();
+          yPosition = margin;
+          return true;
+        }
+        return false;
+      };
+
+      // Title
+      pdf.setFillColor(139, 92, 246); // Purple
+      pdf.rect(0, 0, pageWidth, 40, 'F');
+      
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFontSize(24);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Play Guide', pageWidth / 2, 18, { align: 'center' });
+      
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`${characterName}`, pageWidth / 2, 28, { align: 'center' });
+      
+      pdf.setFontSize(10);
+      pdf.text(`Level ${level} ${race} ${characterClass}`, pageWidth / 2, 35, { align: 'center' });
+      
+      yPosition = 50;
+      pdf.setTextColor(30, 30, 30);
+
+      // Parse markdown content and render
+      const lines = playGuideContent.split('\n');
+      
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        
+        if (!trimmedLine) {
+          yPosition += 4;
+          continue;
+        }
+
+        // H2 headers
+        if (trimmedLine.startsWith('## ')) {
+          checkPageBreak(15);
+          yPosition += 8;
+          
+          pdf.setFillColor(212, 175, 55); // Gold
+          pdf.rect(margin, yPosition - 2, contentWidth, 10, 'F');
+          
+          pdf.setTextColor(30, 30, 30);
+          pdf.setFontSize(14);
+          pdf.setFont('helvetica', 'bold');
+          pdf.text(trimmedLine.replace('## ', ''), margin + 3, yPosition + 5);
+          yPosition += 14;
+          continue;
+        }
+
+        // H3 headers
+        if (trimmedLine.startsWith('### ')) {
+          checkPageBreak(10);
+          yPosition += 5;
+          
+          pdf.setTextColor(139, 92, 246);
+          pdf.setFontSize(12);
+          pdf.setFont('helvetica', 'bold');
+          pdf.text(trimmedLine.replace('### ', ''), margin, yPosition);
+          yPosition += 8;
+          continue;
+        }
+
+        // Bullet points
+        if (trimmedLine.startsWith('- ') || trimmedLine.startsWith('* ')) {
+          const bulletText = trimmedLine.replace(/^[-*] /, '');
+          
+          pdf.setTextColor(30, 30, 30);
+          pdf.setFontSize(10);
+          pdf.setFont('helvetica', 'normal');
+          
+          const splitText = pdf.splitTextToSize(`• ${bulletText}`, contentWidth - 5);
+          
+          for (const textLine of splitText) {
+            checkPageBreak(6);
+            pdf.text(textLine, margin + 3, yPosition);
+            yPosition += 5;
+          }
+          yPosition += 1;
+          continue;
+        }
+
+        // Numbered lists
+        const numberedMatch = trimmedLine.match(/^(\d+)\. (.+)$/);
+        if (numberedMatch) {
+          const [, num, text] = numberedMatch;
+          
+          pdf.setTextColor(30, 30, 30);
+          pdf.setFontSize(10);
+          pdf.setFont('helvetica', 'normal');
+          
+          const splitText = pdf.splitTextToSize(`${num}. ${text}`, contentWidth - 5);
+          
+          for (const textLine of splitText) {
+            checkPageBreak(6);
+            pdf.text(textLine, margin + 3, yPosition);
+            yPosition += 5;
+          }
+          yPosition += 1;
+          continue;
+        }
+
+        // Regular paragraphs
+        pdf.setTextColor(30, 30, 30);
+        pdf.setFontSize(10);
+        pdf.setFont('helvetica', 'normal');
+        
+        // Remove markdown bold/italic markers for cleaner output
+        const cleanText = trimmedLine
+          .replace(/\*\*(.+?)\*\*/g, '$1')
+          .replace(/\*(.+?)\*/g, '$1')
+          .replace(/__(.+?)__/g, '$1')
+          .replace(/_(.+?)_/g, '$1');
+        
+        const splitText = pdf.splitTextToSize(cleanText, contentWidth);
+        
+        for (const textLine of splitText) {
+          checkPageBreak(5);
+          pdf.text(textLine, margin, yPosition);
+          yPosition += 5;
+        }
+        yPosition += 2;
+      }
+
+      // Footer on last page
+      pdf.setFontSize(8);
+      pdf.setTextColor(128, 128, 128);
+      pdf.text('Generated by BuildMyHero', pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+      // Download
+      const fileName = `${characterName.replace(/\s+/g, '_')}_Play_Guide.pdf`;
+      pdf.save(fileName);
+      
+      toast.success('Play guide PDF downloaded!');
+    } catch (error) {
+      console.error('Play guide PDF generation error:', error);
+      toast.error('Failed to generate play guide PDF. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  return {
+    isGenerating,
+    generatePlayGuidePdf,
+  };
+}

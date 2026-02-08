@@ -164,7 +164,12 @@ export const placeholderCharacter: Character = {
   portrait_url: "https://images.unsplash.com/photo-1518877593221-1f28583780b4?w=400&h=400&fit=crop",
   character_sheet_pdf_url: null,
   play_guide_pdf_url: null,
+  play_guide_content: null,
   is_guest: true,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
+  status: 'complete',
+  generation_progress: 100,
+  email_sent: false,
+  email_requested: false,
 };
