@@ -22,13 +22,18 @@ export type Database = {
           character_sheet_pdf_url: string | null
           concept: string
           created_at: string
+          email_requested: boolean
+          email_sent: boolean
+          generation_progress: number
           id: string
           is_guest: boolean
           level: number
+          play_guide_content: string | null
           play_guide_pdf_url: string | null
           portrait_url: string | null
           race: string
           ruleset: string
+          status: string
           updated_at: string
           user_id: string | null
         }
@@ -39,13 +44,18 @@ export type Database = {
           character_sheet_pdf_url?: string | null
           concept: string
           created_at?: string
+          email_requested?: boolean
+          email_sent?: boolean
+          generation_progress?: number
           id?: string
           is_guest?: boolean
           level?: number
+          play_guide_content?: string | null
           play_guide_pdf_url?: string | null
           portrait_url?: string | null
           race: string
           ruleset?: string
+          status?: string
           updated_at?: string
           user_id?: string | null
         }
@@ -56,13 +66,18 @@ export type Database = {
           character_sheet_pdf_url?: string | null
           concept?: string
           created_at?: string
+          email_requested?: boolean
+          email_sent?: boolean
+          generation_progress?: number
           id?: string
           is_guest?: boolean
           level?: number
+          play_guide_content?: string | null
           play_guide_pdf_url?: string | null
           portrait_url?: string | null
           race?: string
           ruleset?: string
+          status?: string
           updated_at?: string
           user_id?: string | null
         }
