@@ -69,7 +69,22 @@ export default function CharacterPreviewPage() {
     );
   }
 
-  const stats = character.character_data;
+  const stats = (character.character_data && typeof character.character_data === 'object' && Object.keys(character.character_data as Record<string, unknown>).length > 0) 
+    ? character.character_data as Record<string, any>
+    : null;
+
+  if (!stats) {
+    return (
+      <Layout>
+        <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="h-12 w-12 text-primary mx-auto mb-4 animate-spin" />
+            <p className="text-muted-foreground">Character data is still loading...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   const handleDownloadPdf = async () => {
     if (!user) {
