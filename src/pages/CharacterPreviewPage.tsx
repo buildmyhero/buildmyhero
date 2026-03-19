@@ -69,8 +69,8 @@ export default function CharacterPreviewPage() {
     );
   }
 
-  const stats = (character.character_data && typeof character.character_data === 'object' && Object.keys(character.character_data as Record<string, unknown>).length > 0) 
-    ? character.character_data as Record<string, any>
+  const stats = (character.character_data && typeof character.character_data === 'object' && Object.keys(character.character_data as any).length > 0) 
+    ? (character.character_data as any)
     : null;
 
   if (!stats) {
