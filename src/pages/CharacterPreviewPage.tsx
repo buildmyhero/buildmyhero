@@ -12,7 +12,7 @@ import { useSendCharacterEmail } from "@/hooks/useSendCharacterEmail";
 import { CharacterSheet } from "@/components/character/CharacterSheet";
 import { PortraitWithSkeleton } from "@/components/character/PortraitWithSkeleton";
 import { GenerationProgress } from "@/components/character/GenerationProgress";
-import { Shield, Heart, Zap, Eye, Sparkles, ArrowRight, Loader2, Download, BookOpen, Mail } from "lucide-react";
+import { Shield, Heart, Zap, Eye, Sparkles, ArrowRight, Loader2, Download, BookOpen, Mail, AlertTriangle } from "lucide-react";
 
 export default function CharacterPreviewPage() {
   const { id } = useParams();
@@ -57,19 +57,39 @@ export default function CharacterPreviewPage() {
     );
   }
 
+  // FIX Bug 2: handle error status — previously fell through to infinite spinner
+  if (character.status === 'error') {
+    return (
+      <Layout>
+        <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-4">
+          <div className="text-center max-w-md">
+            <AlertTriangle className="h-16 w-16 text-destructive mx-auto mb-4" />
+            <h1 className="font-display text-2xl font-bold mb-2">Generation Failed</h1>
+            <p className="text-muted-foreground mb-6">
+              Something went wrong while creating your character. This is usually a temporary issue — please try again.
+            </p>
+            <Link to="/">
+              <Button variant="gold">Try Again</Button>
+            </Link>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   // Show generation progress if still generating
   if (character.status === 'generating') {
     return (
       <Layout>
-        <GenerationProgress 
-          progress={character.generation_progress} 
+        <GenerationProgress
+          progress={character.generation_progress}
           characterName={character.character_name !== 'Generating...' ? character.character_name : undefined}
         />
       </Layout>
     );
   }
 
-  const stats = (character.character_data && typeof character.character_data === 'object' && Object.keys(character.character_data as any).length > 0) 
+  const stats = (character.character_data && typeof character.character_data === 'object' && Object.keys(character.character_data as any).length > 0)
     ? (character.character_data as any)
     : null;
 
@@ -133,7 +153,7 @@ export default function CharacterPreviewPage() {
                 characterId={character.id}
                 className="w-full aspect-square"
               />
-              
+
               {/* Overlay with name */}
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background to-transparent p-6">
                 <h1 className="font-display text-3xl md:text-4xl font-bold text-foreground">
@@ -143,7 +163,7 @@ export default function CharacterPreviewPage() {
                   Level {character.level} {character.race} {character.character_class}
                 </p>
               </div>
-              
+
               {/* Ruleset badge */}
               <div className="absolute top-4 right-4">
                 <span className="px-3 py-1 text-sm font-medium bg-primary/80 text-primary-foreground rounded-full">
@@ -197,7 +217,7 @@ export default function CharacterPreviewPage() {
               <div className="bg-gradient-card rounded-xl border border-border/50 p-6">
                 <h3 className="font-display text-lg font-semibold mb-4">Features</h3>
                 <ul className="space-y-2">
-                  {stats.features.slice(0, 3).map((feature, index) => (
+                  {stats.features.slice(0, 3).map((feature: any, index: number) => (
                     <li key={index} className="flex items-start gap-2">
                       <Sparkles className="h-4 w-4 text-gold mt-0.5 flex-shrink-0" />
                       <div>
@@ -210,7 +230,7 @@ export default function CharacterPreviewPage() {
                   ))}
                 </ul>
                 {stats.features.length > 3 && (
-                  <Link 
+                  <Link
                     to={`/character/${character.id}`}
                     className="inline-flex items-center gap-1 text-sm text-primary hover:underline mt-4"
                   >
@@ -241,7 +261,7 @@ export default function CharacterPreviewPage() {
                     Your character has been saved to your library.
                   </p>
                 </div>
-                
+
                 <div className="space-y-3">
                   <Link to={`/character/${character.id}`}>
                     <Button variant="gold" className="w-full" size="lg">
@@ -249,9 +269,9 @@ export default function CharacterPreviewPage() {
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </Link>
-                  <Button 
-                    variant="purple" 
-                    className="w-full" 
+                  <Button
+                    variant="purple"
+                    className="w-full"
                     size="lg"
                     onClick={handleDownloadPdf}
                     disabled={isPdfGenerating}
@@ -269,9 +289,9 @@ export default function CharacterPreviewPage() {
                     )}
                   </Button>
                   {character.play_guide_content && (
-                    <Button 
-                      variant="outline" 
-                      className="w-full" 
+                    <Button
+                      variant="outline"
+                      className="w-full"
                       size="lg"
                       onClick={handleDownloadPlayGuide}
                       disabled={isPlayGuidePdfGenerating}
@@ -312,9 +332,9 @@ export default function CharacterPreviewPage() {
                     Sign up to save it and download your character sheet PDF!
                   </p>
                 </div>
-                
+
                 <AuthForm mode="signup" redirectTo={`/character/${id}`} />
-                
+
                 {/* Guest Email Capture */}
                 {!emailSent ? (
                   <div className="bg-gradient-card rounded-xl border border-border/50 p-6">
@@ -333,7 +353,7 @@ export default function CharacterPreviewPage() {
                         onChange={(e) => setGuestEmail(e.target.value)}
                         className="flex-1"
                       />
-                      <Button 
+                      <Button
                         variant="gold"
                         onClick={handleSendGuestEmail}
                         disabled={isEmailSending || !guestEmail}
@@ -353,9 +373,9 @@ export default function CharacterPreviewPage() {
                     </p>
                   </div>
                 )}
-                
+
                 <div className="text-center">
-                  <Link 
+                  <Link
                     to={`/character/${character.id}`}
                     className="text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >

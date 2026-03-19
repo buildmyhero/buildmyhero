@@ -45,6 +45,8 @@ export function useCharacterGeneration() {
 
       if (data?.success && data?.character) {
         toast.success(`${data.character.character_name} has been created!`);
+        // FIX Bug 3: reset isGenerating before navigating so button unlocks if navigation fails
+        setState({ isGenerating: false, error: null });
         navigate(`/character/${data.character.id}/preview`);
       } else {
         toast.error('Unexpected response from server');

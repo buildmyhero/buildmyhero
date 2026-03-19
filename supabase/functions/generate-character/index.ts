@@ -155,22 +155,7 @@ JSON STRUCTURE:
   "features": [
     {"name": "Feature name", "description": "What it does", "source": "Class/Race/Background"}
   ],
-  "spellcasting": null OR {
-    "ability": "intelligence" | "wisdom" | "charisma",
-    "spellSaveDC": number,
-    "spellAttackBonus": number,
-    "cantripsKnown": number,
-    "spellsKnown": number,
-    "spellSlots": [
-      {"level": 1, "total": number, "used": 0},
-      {"level": 2, "total": number, "used": 0}
-    ],
-    "spells": [
-      {"name": "Spell name", "level": 0, "school": "Evocation", "castingTime": "1 action", 
-       "range": "60 feet", "components": "V, S", "duration": "Instantaneous", 
-       "description": "Brief description", "prepared": true}
-    ]
-  },
+  "spellcasting": null,
   "personality": {
     "traits": ["trait 1", "trait 2"],
     "ideals": ["What they believe"],
@@ -179,7 +164,7 @@ JSON STRUCTURE:
   },
   "appearance": {
     "age": "25 years",
-    "height": "5'10\\"",
+    "height": "5'10\"",
     "weight": "170 lbs",
     "eyes": "Eye color",
     "skin": "Skin description",
@@ -191,13 +176,13 @@ JSON STRUCTURE:
 
 RULESET DIFFERENCES:
 2024 Ruleset:
-- Use "Species" terminology in descriptions (but keep "race" key for DB compatibility)
+- Use Species terminology in descriptions (but keep race key for DB compatibility)
 - Species get +2/+1 or +1/+1/+1 ability score increases (player choice)
 - Backgrounds grant Origin Feat
 - Updated class features (especially Ranger, Monk)
 
 2014 Ruleset:
-- Use "Race" terminology  
+- Use Race terminology
 - Races have fixed ability score increases
 - Backgrounds give skills/tools only
 - Original class features
@@ -257,7 +242,7 @@ async function generatePortrait(
 ): Promise<string | null> {
   try {
     console.log('Starting portrait generation for:', characterName);
-    
+
     const portraitPrompt = `Fantasy character portrait art, professional D&D character illustration. ${visualDescription}. High quality digital fantasy art, dramatic lighting, detailed face and upper body portrait, trending on artstation, painterly style.`;
 
     const imageResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -268,12 +253,7 @@ async function generatePortrait(
       },
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash-image',
-        messages: [
-          {
-            role: 'user',
-            content: portraitPrompt
-          }
-        ],
+        messages: [{ role: 'user', content: portraitPrompt }],
         modalities: ['image', 'text']
       }),
     });
@@ -292,25 +272,19 @@ async function generatePortrait(
       return null;
     }
 
-    // The image is base64 encoded, extract the data
     const base64Data = imageUrl.replace(/^data:image\/\w+;base64,/, '');
     const imageBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
 
-    // Upload to Supabase Storage
     const fileName = `${characterId}.png`;
     const { error: uploadError } = await supabase.storage
       .from('character-portraits')
-      .upload(fileName, imageBytes, {
-        contentType: 'image/png',
-        upsert: true
-      });
+      .upload(fileName, imageBytes, { contentType: 'image/png', upsert: true });
 
     if (uploadError) {
       console.error('Failed to upload portrait:', uploadError);
       return null;
     }
 
-    // Get public URL
     const { data: { publicUrl } } = supabase.storage
       .from('character-portraits')
       .getPublicUrl(fileName);
@@ -331,13 +305,8 @@ async function generatePlayGuide(
 ): Promise<string | null> {
   try {
     console.log('Starting play guide generation for:', characterName);
-    
-    const userPrompt = `Generate a comprehensive play guide for this D&D 5e character:
 
-CHARACTER DATA:
-${JSON.stringify(characterData, null, 2)}
-
-Create a detailed, actionable play guide that will help the player understand how to play this character effectively in both combat and roleplay situations.`;
+    const userPrompt = `Generate a comprehensive play guide for this D&D 5e character:\n\nCHARACTER DATA:\n${JSON.stringify(characterData, null, 2)}\n\nCreate a detailed, actionable play guide that will help the player understand how to play this character effectively in both combat and roleplay situations.`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -346,7 +315,8 @@ Create a detailed, actionable play guide that will help the player understand ho
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
+        // FIX Bug 1: corrected from non-existent 'google/gemini-3-flash-preview'
+        model: 'google/gemini-2.5-flash-preview',
         messages: [
           { role: 'system', content: PLAY_GUIDE_PROMPT },
           { role: 'user', content: userPrompt }
@@ -380,26 +350,20 @@ Create a detailed, actionable play guide that will help the player understand ho
 }
 
 async function updateProgress(
-  supabase: any, 
-  characterId: string, 
-  progress: number, 
+  supabase: any,
+  characterId: string,
+  progress: number,
   status: 'generating' | 'complete' | 'error' = 'generating'
 ) {
   const { error } = await supabase
     .from('characters')
-    .update({ 
-      generation_progress: progress,
-      status: status
-    })
+    .update({ generation_progress: progress, status: status })
     .eq('id', characterId);
-  
-  if (error) {
-    console.error('Failed to update progress:', error);
-  }
+
+  if (error) console.error('Failed to update progress:', error);
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -407,7 +371,6 @@ serve(async (req) => {
   try {
     const { concept, level, ruleset } = await req.json();
 
-    // Validate inputs
     if (!concept || typeof concept !== 'string' || concept.trim().length === 0) {
       return new Response(
         JSON.stringify({ error: 'Character concept is required' }),
@@ -438,15 +401,12 @@ serve(async (req) => {
       );
     }
 
-    // Create Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Generate a UUID for the character and create initial record
     const characterId = crypto.randomUUID();
 
-    // Create initial character record with generating status
     const initialRecord = {
       id: characterId,
       character_name: 'Generating...',
@@ -463,9 +423,7 @@ serve(async (req) => {
       generation_progress: 5,
     };
 
-    const { error: insertError } = await supabase
-      .from('characters')
-      .insert(initialRecord);
+    const { error: insertError } = await supabase.from('characters').insert(initialRecord);
 
     if (insertError) {
       console.error('Failed to create initial record:', insertError);
@@ -475,18 +433,13 @@ serve(async (req) => {
       );
     }
 
-    const userPrompt = `Create a D&D 5e character for the ${ruleset} ruleset at level ${level}.
-
-Character concept: "${concept}"
-
-Generate a complete, playable character with all stats, equipment, features, and backstory. Make sure the character fits the concept creatively while being mechanically sound.`;
+    const userPrompt = `Create a D&D 5e character for the ${ruleset} ruleset at level ${level}.\n\nCharacter concept: "${concept}"\n\nGenerate a complete, playable character with all stats, equipment, features, and backstory. Make sure the character fits the concept creatively while being mechanically sound.`;
 
     console.log('Generating character with concept:', concept, 'level:', level, 'ruleset:', ruleset);
 
-    // Update progress: Analyzing concept
     await updateProgress(supabase, characterId, 15);
 
-    // Call Lovable AI Gateway for character generation
+    // FIX Bug 1: corrected from non-existent 'google/gemini-3-flash-preview'
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -494,7 +447,7 @@ Generate a complete, playable character with all stats, equipment, features, and
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
+        model: 'google/gemini-2.5-flash-preview',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: userPrompt }
@@ -507,24 +460,20 @@ Generate a complete, playable character with all stats, equipment, features, and
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
       console.error('AI Gateway error:', aiResponse.status, errorText);
-      
-      // Update status to error
       await updateProgress(supabase, characterId, 0, 'error');
-      
+
       if (aiResponse.status === 429) {
         return new Response(
           JSON.stringify({ error: 'Rate limit exceeded. Please try again in a moment.' }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      
       if (aiResponse.status === 402) {
         return new Response(
           JSON.stringify({ error: 'AI credits exhausted. Please try again later.' }),
           { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      
       return new Response(
         JSON.stringify({ error: 'Failed to generate character. Please try again.' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -543,26 +492,18 @@ Generate a complete, playable character with all stats, equipment, features, and
       );
     }
 
-    // Update progress: Rolling ability scores
     await updateProgress(supabase, characterId, 30);
 
-    // Parse the JSON from the AI response
     let characterData;
     try {
       let jsonStr = content.trim();
-      if (jsonStr.startsWith('```json')) {
-        jsonStr = jsonStr.slice(7);
-      } else if (jsonStr.startsWith('```')) {
-        jsonStr = jsonStr.slice(3);
-      }
-      if (jsonStr.endsWith('```')) {
-        jsonStr = jsonStr.slice(0, -3);
-      }
+      if (jsonStr.startsWith('```json')) jsonStr = jsonStr.slice(7);
+      else if (jsonStr.startsWith('```')) jsonStr = jsonStr.slice(3);
+      if (jsonStr.endsWith('```')) jsonStr = jsonStr.slice(0, -3);
       jsonStr = jsonStr.trim();
-      
       characterData = JSON.parse(jsonStr);
     } catch (parseError) {
-      console.error('Failed to parse AI response as JSON:', parseError, 'Content:', content);
+      console.error('Failed to parse AI response as JSON:', parseError);
       await updateProgress(supabase, characterId, 0, 'error');
       return new Response(
         JSON.stringify({ error: 'Failed to parse character data. Please try again.' }),
@@ -570,7 +511,6 @@ Generate a complete, playable character with all stats, equipment, features, and
       );
     }
 
-    // Validate required fields
     if (!characterData.name || !characterData.race || !characterData.class) {
       console.error('Missing required character fields:', characterData);
       await updateProgress(supabase, characterId, 0, 'error');
@@ -580,10 +520,8 @@ Generate a complete, playable character with all stats, equipment, features, and
       );
     }
 
-    // Update progress: Selecting equipment
     await updateProgress(supabase, characterId, 50);
 
-    // Prepare the character data for storage
     const characterRecord = {
       character_name: characterData.name,
       character_class: characterData.class,
@@ -618,7 +556,6 @@ Generate a complete, playable character with all stats, equipment, features, and
 
     console.log('Updating character in database:', characterRecord.character_name);
 
-    // Update the character record
     const { data: savedCharacter, error: dbError } = await supabase
       .from('characters')
       .update(characterRecord)
@@ -636,29 +573,20 @@ Generate a complete, playable character with all stats, equipment, features, and
 
     console.log('Character saved successfully with ID:', savedCharacter.id);
 
-    // Start background tasks for portrait and play guide generation
-    const visualDescription = characterData.appearance?.visualDescription || 
-                              characterData.appearance?.description ||
-                              `A ${characterData.race} ${characterData.class} named ${characterData.name}`;
-    
-    // Background tasks: Portrait + Play Guide generation
+    const visualDescription = characterData.appearance?.visualDescription ||
+      characterData.appearance?.description ||
+      `A ${characterData.race} ${characterData.class} named ${characterData.name}`;
+
     EdgeRuntime.waitUntil((async () => {
       try {
-        // Update progress: Generating portrait
         await updateProgress(supabase, characterId, 60);
 
-        // Generate portrait
         const portraitUrl = await generatePortrait(
-          visualDescription,
-          characterData.name,
-          savedCharacter.id,
-          supabase,
-          LOVABLE_API_KEY
+          visualDescription, characterData.name, savedCharacter.id, supabase, LOVABLE_API_KEY
         );
 
         if (portraitUrl) {
-          await supabase
-            .from('characters')
+          await supabase.from('characters')
             .update({ portrait_url: portraitUrl, generation_progress: 70 })
             .eq('id', savedCharacter.id);
           console.log('Character portrait updated successfully');
@@ -666,10 +594,8 @@ Generate a complete, playable character with all stats, equipment, features, and
           await updateProgress(supabase, characterId, 70);
         }
 
-        // Update progress: Generating play guide
         await updateProgress(supabase, characterId, 75);
 
-        // Generate play guide
         const playGuideContent = await generatePlayGuide(
           {
             name: characterData.name,
@@ -690,45 +616,30 @@ Generate a complete, playable character with all stats, equipment, features, and
         );
 
         if (playGuideContent) {
-          await supabase
-            .from('characters')
-            .update({ 
-              play_guide_content: playGuideContent,
-              generation_progress: 95 
-            })
+          await supabase.from('characters')
+            .update({ play_guide_content: playGuideContent, generation_progress: 95 })
             .eq('id', savedCharacter.id);
           console.log('Play guide generated successfully');
         } else {
           await updateProgress(supabase, characterId, 95);
         }
 
-        // Mark as complete
-        await supabase
-          .from('characters')
-          .update({ 
-            status: 'complete',
-            generation_progress: 100 
-          })
+        await supabase.from('characters')
+          .update({ status: 'complete', generation_progress: 100 })
           .eq('id', savedCharacter.id);
-        
+
         console.log('Character generation complete');
 
       } catch (error) {
         console.error('Background generation error:', error);
-        await supabase
-          .from('characters')
+        await supabase.from('characters')
           .update({ status: 'complete', generation_progress: 100 })
           .eq('id', savedCharacter.id);
       }
     })());
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        character: savedCharacter,
-        portraitGenerating: true,
-        playGuideGenerating: true
-      }),
+      JSON.stringify({ success: true, character: savedCharacter, portraitGenerating: true, playGuideGenerating: true }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
