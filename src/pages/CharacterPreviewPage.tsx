@@ -182,7 +182,7 @@ export default function CharacterPreviewPage() {
                       <p className="text-xs uppercase text-muted-foreground">
                         {ability.slice(0, 3)}
                       </p>
-                      <p className="text-xl font-bold">{score}</p>
+                      <p className="text-xl font-bold">{String(score)}</p>
                       <p className="text-xs text-muted-foreground">
                         ({modifier >= 0 ? '+' : ''}{modifier})
                       </p>
