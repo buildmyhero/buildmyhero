@@ -69,7 +69,22 @@ export default function CharacterPreviewPage() {
     );
   }
 
-  const stats = character.character_data;
+  const stats = (character.character_data && typeof character.character_data === 'object' && Object.keys(character.character_data as any).length > 0) 
+    ? (character.character_data as any)
+    : null;
+
+  if (!stats) {
+    return (
+      <Layout>
+        <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="h-12 w-12 text-primary mx-auto mb-4 animate-spin" />
+            <p className="text-muted-foreground">Character data is still loading...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   const handleDownloadPdf = async () => {
     if (!user) {
@@ -167,7 +182,7 @@ export default function CharacterPreviewPage() {
                       <p className="text-xs uppercase text-muted-foreground">
                         {ability.slice(0, 3)}
                       </p>
-                      <p className="text-xl font-bold">{score}</p>
+                      <p className="text-xl font-bold">{String(score)}</p>
                       <p className="text-xs text-muted-foreground">
                         ({modifier >= 0 ? '+' : ''}{modifier})
                       </p>
