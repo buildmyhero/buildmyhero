@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Character, CharacterData, GenerationStatus } from '@/types/character';
 
@@ -54,10 +54,21 @@ export function useCharacter(id: string | undefined) {
 }
 
 // Real-time subscription hook for generation progress
+// Uses both Supabase realtime AND a polling fallback every 3s while generating.
+// The polling fallback ensures completion is detected even if realtime is not
+// enabled on the characters table in the Supabase dashboard.
 export function useCharacterRealtime(id: string | undefined) {
   const [character, setCharacter] = useState<Character | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopPolling = () => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+  };
 
   useEffect(() => {
     if (!id) {
@@ -65,8 +76,7 @@ export function useCharacterRealtime(id: string | undefined) {
       return;
     }
 
-    // Initial fetch
-    const fetchCharacter = async () => {
+    const fetchCharacter = async (): Promise<Character | null> => {
       const { data, error } = await supabase
         .from('characters')
         .select('*')
@@ -74,18 +84,44 @@ export function useCharacterRealtime(id: string | undefined) {
         .single();
 
       if (error) {
-        setError(error);
-        setIsLoading(false);
-        return;
+        console.error('Error fetching character:', error);
+        return null;
       }
 
-      setCharacter(transformCharacter(data));
-      setIsLoading(false);
+      return transformCharacter(data);
     };
 
-    fetchCharacter();
+    // Initial fetch
+    fetchCharacter().then((char) => {
+      if (char) {
+        setCharacter(char);
+        // If already done, no need to poll or subscribe
+        if (char.status === 'complete' || char.status === 'error') {
+          stopPolling();
+        }
+      } else {
+        setError(new Error('Character not found'));
+      }
+      setIsLoading(false);
+    });
 
-    // Set up real-time subscription
+    // Polling fallback: re-fetch every 3 seconds while still generating.
+    // This guarantees the UI updates even if the Supabase realtime
+    // postgres_changes subscription is not enabled on the characters table.
+    pollIntervalRef.current = setInterval(async () => {
+      const char = await fetchCharacter();
+      if (char) {
+        setCharacter(char);
+        // Stop polling once generation is finished
+        if (char.status === 'complete' || char.status === 'error') {
+          console.log('Generation finished, stopping poll. Status:', char.status);
+          stopPolling();
+        }
+      }
+    }, 3000);
+
+    // Also keep the realtime subscription — if realtime IS enabled it will
+    // update instantly; the poll is just the safety net.
     const channel = supabase
       .channel(`character-${id}`)
       .on(
@@ -97,13 +133,18 @@ export function useCharacterRealtime(id: string | undefined) {
           filter: `id=eq.${id}`,
         },
         (payload) => {
-          console.log('Character update received:', payload);
-          setCharacter(transformCharacter(payload.new));
+          console.log('Character realtime update received:', payload);
+          const char = transformCharacter(payload.new);
+          setCharacter(char);
+          if (char.status === 'complete' || char.status === 'error') {
+            stopPolling();
+          }
         }
       )
       .subscribe();
 
     return () => {
+      stopPolling();
       supabase.removeChannel(channel);
     };
   }, [id]);
@@ -116,7 +157,7 @@ export function useUserCharacters() {
     queryKey: ['user-characters'],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         throw new Error('Not authenticated');
       }
