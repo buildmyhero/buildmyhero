@@ -1,6 +1,4 @@
 import { useState } from 'react';
-import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
 import { toast } from 'sonner';
 import { CharacterData } from '@/types/character';
 
@@ -13,6 +11,7 @@ interface Character {
   ruleset: string;
   character_data: CharacterData;
   portrait_url: string | null;
+  play_guide_content?: string | null;
 }
 
 export function usePdfGeneration() {
@@ -20,106 +19,19 @@ export function usePdfGeneration() {
 
   const generatePdf = async (character: Character): Promise<void> => {
     setIsGenerating(true);
-    
     try {
-      // Find the character sheet element
-      const element = document.getElementById('character-sheet');
-      if (!element) {
-        throw new Error('Character sheet element not found');
-      }
-
-      // Create a clone for PDF generation with print-friendly styles
-      const clone = element.cloneNode(true) as HTMLElement;
-      clone.style.width = '800px';
-      clone.style.padding = '40px';
-      clone.style.background = 'white';
-      clone.style.color = 'black';
-      
-      // Temporarily add to document
-      clone.style.position = 'absolute';
-      clone.style.left = '-9999px';
-      clone.style.top = '0';
-      document.body.appendChild(clone);
-
-      // Apply print-friendly styles to the clone
-      const allElements = clone.querySelectorAll('*');
-      allElements.forEach((el) => {
-        const htmlEl = el as HTMLElement;
-        // Reset backgrounds to white or very light
-        const computedStyle = window.getComputedStyle(htmlEl);
-        if (computedStyle.backgroundColor !== 'rgba(0, 0, 0, 0)' && computedStyle.backgroundColor !== 'transparent') {
-          htmlEl.style.backgroundColor = '#f5f5f5';
-        }
-        // Make text dark
-        htmlEl.style.color = '#1a1a1a';
-      });
-
-      // Generate canvas from the clone
-      const canvas = await html2canvas(clone, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-      });
-
-      // Remove the clone
-      document.body.removeChild(clone);
-
-      // Create PDF
-      const imgWidth = 210; // A4 width in mm
-      const pageHeight = 297; // A4 height in mm
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      // Add first page
-      pdf.addImage(
-        canvas.toDataURL('image/png'),
-        'PNG',
-        0,
-        position,
-        imgWidth,
-        imgHeight,
-        undefined,
-        'FAST'
-      );
-      heightLeft -= pageHeight;
-
-      // Add additional pages if needed
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(
-          canvas.toDataURL('image/png'),
-          'PNG',
-          0,
-          position,
-          imgWidth,
-          imgHeight,
-          undefined,
-          'FAST'
-        );
-        heightLeft -= pageHeight;
-      }
-
-      // Download the PDF
-      const fileName = `${character.character_name.replace(/\s+/g, '_')}_Character_Sheet.pdf`;
-      pdf.save(fileName);
-      
-      toast.success('Character sheet PDF downloaded!');
+      // Use browser print dialog — renders the #character-sheet element
+      // via the print-specific CSS rules in index.css.
+      // This gives a clean 1-2 page A4/Letter output.
+      window.print();
+      toast.success('Print dialog opened — save as PDF to download.');
     } catch (error) {
-      console.error('PDF generation error:', error);
-      toast.error('Failed to generate PDF. Please try again.');
+      console.error('Print error:', error);
+      toast.error('Could not open print dialog. Please use Ctrl/Cmd+P.');
     } finally {
       setIsGenerating(false);
     }
   };
 
-  return {
-    isGenerating,
-    generatePdf,
-  };
+  return { isGenerating, generatePdf };
 }

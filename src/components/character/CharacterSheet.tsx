@@ -13,359 +13,247 @@ interface CharacterSheetProps {
     concept: string;
     portrait_url: string | null;
     character_data: CharacterData;
+    play_guide_content?: string | null;
   };
   forPrint?: boolean;
 }
 
 export function CharacterSheet({ character, forPrint = false }: CharacterSheetProps) {
-  const stats = character.character_data;
+  const stats = character.character_data as any;
   const abilityNames = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'] as const;
-  
-  const formatModifier = (mod: number) => mod >= 0 ? `+${mod}` : `${mod}`;
-  
+  const fmt = (mod: number) => mod >= 0 ? `+${mod}` : `${mod}`;
+
   return (
-    <div className={`character-sheet ${forPrint ? 'print-mode' : ''}`} id="character-sheet">
-      {/* Header Section */}
-      <div className="flex flex-col md:flex-row gap-6 mb-8">
-        {/* Portrait */}
-        <div className="flex-shrink-0">
-          {character.portrait_url ? (
-            <img
-              src={character.portrait_url}
-              alt={character.character_name}
-              className="w-40 h-40 md:w-48 md:h-48 object-cover rounded-xl border-2 border-primary/30 shadow-lg"
-            />
-          ) : (
-            <div className="w-40 h-40 md:w-48 md:h-48 bg-gradient-card rounded-xl border-2 border-border/50 flex items-center justify-center">
-              <User className="h-16 w-16 text-muted-foreground/50" />
+    <div className={`character-sheet ${forPrint ? 'for-print' : ''}`} id="character-sheet">
+
+      {/* ═══ PAGE 1 ════════════════════════════════════════════════ */}
+      <div className="print-page">
+
+        {/* Header */}
+        <div className="print-header">
+          <div className="print-portrait-wrap">
+            {character.portrait_url
+              ? <img src={character.portrait_url} alt={character.character_name} className="print-portrait" />
+              : <div className="print-portrait-placeholder"><User className="h-12 w-12 opacity-30" /></div>}
+          </div>
+          <div className="print-title">
+            <h1>{character.character_name}</h1>
+            <p className="print-subtitle">
+              Level {character.level} {character.race} {character.character_class}
+              {stats.subclass && ` — ${stats.subclass}`}
+            </p>
+            <div className="print-badges">
+              {stats.alignment && <span className="print-badge">{stats.alignment}</span>}
+              {stats.background?.name && <span className="print-badge">{stats.background.name}</span>}
+              <span className="print-badge">D&D {character.ruleset}</span>
             </div>
-          )}
-        </div>
-        
-        {/* Character Info */}
-        <div className="flex-1">
-          <h1 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-2">
-            {character.character_name}
-          </h1>
-          <p className="text-xl text-muted-foreground mb-4">
-            Level {character.level} {character.race} {character.character_class}
-            {stats.subclass && ` (${stats.subclass})`}
-          </p>
-          <div className="flex flex-wrap gap-2 text-sm">
-            <span className="px-3 py-1 bg-primary/20 text-primary rounded-full">
-              {stats.alignment}
-            </span>
-            <span className="px-3 py-1 bg-secondary text-secondary-foreground rounded-full">
-              {stats.background?.name}
-            </span>
-            <span className="px-3 py-1 bg-gold/20 text-gold rounded-full">
-              D&D {character.ruleset}
-            </span>
+          </div>
+          {/* Core stats inline in header */}
+          <div className="print-core-stats">
+            {[
+              { label: 'AC', value: stats.armorClass || '—' },
+              { label: 'HP', value: stats.hitPoints?.maximum || '—' },
+              { label: 'Init', value: fmt(stats.initiative || 0) },
+              { label: 'Speed', value: `${stats.speed || 30}` },
+              { label: 'Perc', value: stats.passivePerception || 10 },
+              { label: 'Prof', value: fmt(stats.proficiencyBonus || 2) },
+            ].map(s => (
+              <div key={s.label} className="print-core-stat">
+                <span className="print-core-stat-value">{s.value}</span>
+                <span className="print-core-stat-label">{s.label}</span>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
 
-      {/* Core Stats Row */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-        <div className="bg-gradient-card rounded-xl border border-border/50 p-4 text-center">
-          <Shield className="h-6 w-6 text-primary mx-auto mb-2" />
-          <p className="text-3xl font-bold">{stats.armorClass || '—'}</p>
-          <p className="text-xs text-muted-foreground uppercase">Armor Class</p>
-        </div>
-        <div className="bg-gradient-card rounded-xl border border-border/50 p-4 text-center">
-          <Heart className="h-6 w-6 text-destructive mx-auto mb-2" />
-          <p className="text-3xl font-bold">{stats.hitPoints?.maximum || '—'}</p>
-          <p className="text-xs text-muted-foreground uppercase">Hit Points</p>
-        </div>
-        <div className="bg-gradient-card rounded-xl border border-border/50 p-4 text-center">
-          <Zap className="h-6 w-6 text-gold mx-auto mb-2" />
-          <p className="text-3xl font-bold">{formatModifier(stats.initiative || 0)}</p>
-          <p className="text-xs text-muted-foreground uppercase">Initiative</p>
-        </div>
-        <div className="bg-gradient-card rounded-xl border border-border/50 p-4 text-center">
-          <Footprints className="h-6 w-6 text-secondary-foreground mx-auto mb-2" />
-          <p className="text-3xl font-bold">{stats.speed || 30} ft</p>
-          <p className="text-xs text-muted-foreground uppercase">Speed</p>
-        </div>
-        <div className="bg-gradient-card rounded-xl border border-border/50 p-4 text-center col-span-2 md:col-span-1">
-          <Eye className="h-6 w-6 text-muted-foreground mx-auto mb-2" />
-          <p className="text-3xl font-bold">{stats.passivePerception || 10}</p>
-          <p className="text-xs text-muted-foreground uppercase">Passive Perception</p>
-        </div>
-      </div>
+        {/* Two-column body */}
+        <div className="print-body">
 
-      {/* Ability Scores */}
-      <div className="mb-8">
-        <h2 className="font-display text-xl font-semibold mb-4 flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-gold" />
-          Ability Scores
-        </h2>
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-          {abilityNames.map((ability) => {
-            const score = stats.abilityScores?.[ability] || 10;
-            const modifier = stats.abilityModifiers?.[ability] || 0;
-            const save = stats.savingThrows?.[ability];
-            
-            return (
-              <div key={ability} className="bg-gradient-card rounded-xl border border-border/50 p-4 text-center">
-                <p className="text-xs uppercase text-muted-foreground font-medium mb-1">
-                  {ability.slice(0, 3)}
-                </p>
-                <p className="text-3xl font-bold">{score}</p>
-                <p className="text-lg font-semibold text-primary">
-                  {formatModifier(modifier)}
-                </p>
-                {save && (
-                  <div className={`mt-2 text-xs ${save.proficient ? 'text-gold' : 'text-muted-foreground'}`}>
-                    Save: {formatModifier(save.bonus || modifier)}
-                    {save.proficient && ' ●'}
+          {/* LEFT column */}
+          <div className="print-col print-col-left">
+
+            {/* Ability Scores */}
+            <div className="print-section">
+              <h2 className="print-section-title">Ability Scores</h2>
+              <div className="print-abilities">
+                {abilityNames.map(ab => {
+                  const score = stats.abilityScores?.[ab] || 10;
+                  const mod = stats.abilityModifiers?.[ab] || 0;
+                  const save = stats.savingThrows?.[ab];
+                  return (
+                    <div key={ab} className="print-ability">
+                      <span className="print-ability-name">{ab.slice(0,3).toUpperCase()}</span>
+                      <span className="print-ability-score">{score}</span>
+                      <span className="print-ability-mod">{fmt(mod)}</span>
+                      {save?.proficient && <span className="print-ability-save">✦ {fmt(save.bonus ?? mod)}</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Skills */}
+            <div className="print-section">
+              <h2 className="print-section-title">Skills</h2>
+              <div className="print-skills">
+                {stats.skills?.map((skill: any) => (
+                  <div key={skill.name} className={`print-skill ${skill.proficient ? 'proficient' : ''}`}>
+                    <span className="print-skill-dot">{skill.expertise ? '◆' : skill.proficient ? '●' : '○'}</span>
+                    <span className="print-skill-name">{skill.name}</span>
+                    <span className="print-skill-bonus">{fmt(skill.bonus || 0)}</span>
                   </div>
-                )}
+                ))}
               </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Skills */}
-      <div className="mb-8">
-        <h2 className="font-display text-xl font-semibold mb-4">Skills</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-          {stats.skills?.map((skill) => (
-            <div 
-              key={skill.name}
-              className={`flex items-center justify-between px-3 py-2 rounded-lg ${
-                skill.proficient ? 'bg-primary/10' : 'bg-muted/50'
-              }`}
-            >
-              <span className="flex items-center gap-2">
-                {skill.expertise && <span className="text-gold">◆</span>}
-                {skill.proficient && !skill.expertise && <span className="text-primary">●</span>}
-                {!skill.proficient && <span className="text-muted-foreground/30">○</span>}
-                <span className={skill.proficient ? 'font-medium' : 'text-muted-foreground'}>
-                  {skill.name}
-                </span>
-              </span>
-              <span className="font-mono font-semibold">
-                {formatModifier(skill.bonus || 0)}
-              </span>
             </div>
-          ))}
-        </div>
-      </div>
 
-      {/* Equipment & Weapons */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        {/* Weapons */}
-        <div className="bg-gradient-card rounded-xl border border-border/50 p-6">
-          <h2 className="font-display text-xl font-semibold mb-4 flex items-center gap-2">
-            <Sword className="h-5 w-5 text-destructive" />
-            Weapons & Attacks
-          </h2>
-          <div className="space-y-3">
-            {stats.equipment?.filter(item => 
-              item.name?.toLowerCase().includes('sword') ||
-              item.name?.toLowerCase().includes('bow') ||
-              item.name?.toLowerCase().includes('dagger') ||
-              item.name?.toLowerCase().includes('axe') ||
-              item.name?.toLowerCase().includes('staff') ||
-              item.name?.toLowerCase().includes('mace') ||
-              item.name?.toLowerCase().includes('crossbow') ||
-              item.name?.toLowerCase().includes('spear') ||
-              item.equipped
-            ).slice(0, 5).map((weapon, index) => (
-              <div key={index} className="flex items-center justify-between py-2 border-b border-border/30 last:border-0">
-                <span className="font-medium">{weapon.name}</span>
-                <span className="text-sm text-muted-foreground">{weapon.description}</span>
+            {/* Proficiencies */}
+            {stats.proficiencies && (
+              <div className="print-section">
+                <h2 className="print-section-title">Proficiencies</h2>
+                {stats.proficiencies.armor?.length > 0 && <p className="print-prof-line"><b>Armor:</b> {stats.proficiencies.armor.join(', ')}</p>}
+                {stats.proficiencies.weapons?.length > 0 && <p className="print-prof-line"><b>Weapons:</b> {stats.proficiencies.weapons.join(', ')}</p>}
+                {stats.proficiencies.tools?.length > 0 && <p className="print-prof-line"><b>Tools:</b> {stats.proficiencies.tools.join(', ')}</p>}
+                {stats.proficiencies.languages?.length > 0 && <p className="print-prof-line"><b>Languages:</b> {stats.proficiencies.languages.join(', ')}</p>}
               </div>
-            ))}
-            {(!stats.equipment || stats.equipment.length === 0) && (
-              <p className="text-muted-foreground text-sm">No weapons equipped</p>
             )}
           </div>
-        </div>
 
-        {/* Equipment */}
-        <div className="bg-gradient-card rounded-xl border border-border/50 p-6">
-          <h2 className="font-display text-xl font-semibold mb-4">Equipment</h2>
-          <div className="space-y-2 max-h-48 overflow-y-auto">
-            {stats.equipment?.map((item, index) => (
-              <div key={index} className="flex items-center justify-between text-sm py-1">
-                <span>{item.name}</span>
-                {item.quantity > 1 && <span className="text-muted-foreground">×{item.quantity}</span>}
+          {/* RIGHT column */}
+          <div className="print-col print-col-right">
+
+            {/* Features & Traits */}
+            <div className="print-section">
+              <h2 className="print-section-title">Features & Traits</h2>
+              <div className="print-features">
+                {stats.features?.map((f: any, i: number) => (
+                  <div key={i} className="print-feature">
+                    <span className="print-feature-name">{f.name}</span>
+                    <span className="print-feature-src"> [{f.source}]</span>
+                    <p className="print-feature-desc">{f.description}</p>
+                  </div>
+                ))}
               </div>
-            ))}
-            {(!stats.equipment || stats.equipment.length === 0) && (
-              <p className="text-muted-foreground text-sm">No equipment</p>
+            </div>
+
+            {/* Equipment */}
+            <div className="print-section">
+              <h2 className="print-section-title">Equipment</h2>
+              <div className="print-equipment">
+                {stats.equipment?.map((item: any, i: number) => (
+                  <div key={i} className="print-equip-item">
+                    <span>{item.name}{item.quantity > 1 ? ` ×${item.quantity}` : ''}</span>
+                    {item.description && <span className="print-equip-desc"> — {item.description}</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Personality */}
+            <div className="print-section">
+              <h2 className="print-section-title">Personality</h2>
+              {stats.personality?.traits?.length > 0 && <p className="print-pers-line"><b>Traits:</b> {stats.personality.traits.join(' ')}</p>}
+              {stats.personality?.ideals?.length > 0 && <p className="print-pers-line"><b>Ideals:</b> {stats.personality.ideals.join(' ')}</p>}
+              {stats.personality?.bonds?.length > 0 && <p className="print-pers-line"><b>Bonds:</b> {stats.personality.bonds.join(' ')}</p>}
+              {stats.personality?.flaws?.length > 0 && <p className="print-pers-line"><b>Flaws:</b> {stats.personality.flaws.join(' ')}</p>}
+            </div>
+
+            {/* Backstory */}
+            {stats.backstory && (
+              <div className="print-section">
+                <h2 className="print-section-title">Backstory</h2>
+                <p className="print-backstory">{stats.backstory}</p>
+              </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Features */}
-      <div className="mb-8">
-        <h2 className="font-display text-xl font-semibold mb-4 flex items-center gap-2">
-          <BookOpen className="h-5 w-5 text-gold" />
-          Features & Traits
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {stats.features?.map((feature, index) => (
-            <div key={index} className="bg-gradient-card rounded-xl border border-border/50 p-4">
-              <div className="flex items-start justify-between mb-2">
-                <h3 className="font-semibold">{feature.name}</h3>
-                <span className="text-xs px-2 py-0.5 bg-primary/20 text-primary rounded">
-                  {feature.source}
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground">{feature.description}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Spellcasting */}
+      {/* ═══ PAGE 2 — Spells (only if spellcaster) ════════════════ */}
       {stats.spellcasting && (
-        <div className="mb-8">
-          <h2 className="font-display text-xl font-semibold mb-4 flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            Spellcasting
-          </h2>
-          
-          {/* Spellcasting Stats */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="bg-gradient-card rounded-xl border border-border/50 p-4 text-center">
-              <p className="text-xs uppercase text-muted-foreground mb-1">Ability</p>
-              <p className="text-lg font-bold capitalize">{stats.spellcasting.ability}</p>
+        <div className="print-page print-page-break">
+          <h2 className="print-page-title">{character.character_name} — Spellcasting</h2>
+          <div className="print-spell-header">
+            <div className="print-core-stat">
+              <span className="print-core-stat-value capitalize">{stats.spellcasting.ability}</span>
+              <span className="print-core-stat-label">Ability</span>
             </div>
-            <div className="bg-gradient-card rounded-xl border border-border/50 p-4 text-center">
-              <p className="text-xs uppercase text-muted-foreground mb-1">Spell Save DC</p>
-              <p className="text-3xl font-bold">{stats.spellcasting.spellSaveDC}</p>
+            <div className="print-core-stat">
+              <span className="print-core-stat-value">{stats.spellcasting.spellSaveDC}</span>
+              <span className="print-core-stat-label">Save DC</span>
             </div>
-            <div className="bg-gradient-card rounded-xl border border-border/50 p-4 text-center">
-              <p className="text-xs uppercase text-muted-foreground mb-1">Attack Bonus</p>
-              <p className="text-3xl font-bold">{formatModifier(stats.spellcasting.spellAttackBonus)}</p>
+            <div className="print-core-stat">
+              <span className="print-core-stat-value">{fmt(stats.spellcasting.spellAttackBonus)}</span>
+              <span className="print-core-stat-label">Atk Bonus</span>
             </div>
           </div>
 
           {/* Spell Slots */}
-          {stats.spellcasting.spellSlots && stats.spellcasting.spellSlots.length > 0 && (
-            <div className="bg-gradient-card rounded-xl border border-border/50 p-4 mb-6">
-              <h3 className="font-semibold mb-3">Spell Slots</h3>
-              <div className="flex flex-wrap gap-4">
-                {stats.spellcasting.spellSlots.map((slot) => (
-                  <div key={slot.level} className="text-center">
-                    <p className="text-xs text-muted-foreground mb-1">Level {slot.level}</p>
-                    <div className="flex gap-1">
-                      {Array.from({ length: slot.total }).map((_, i) => (
-                        <div 
-                          key={i}
-                          className={`w-4 h-4 rounded-full border-2 ${
-                            i < slot.used ? 'bg-muted border-muted' : 'border-primary bg-primary/20'
-                          }`}
-                        />
+          {stats.spellcasting.spellSlots?.length > 0 && (
+            <div className="print-section">
+              <h2 className="print-section-title">Spell Slots</h2>
+              <div className="print-spell-slots">
+                {stats.spellcasting.spellSlots.map((slot: any) => (
+                  <div key={slot.level} className="print-slot-group">
+                    <span className="print-slot-level">Lvl {slot.level}</span>
+                    <span className="print-slot-circles">
+                      {Array.from({ length: slot.total }).map((_: any, i: number) => (
+                        <span key={i} className="print-slot-circle">○</span>
                       ))}
-                    </div>
+                    </span>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Spells List */}
-          <div className="space-y-4">
-            {/* Cantrips */}
-            {stats.spellcasting.spells?.filter(s => s.level === 0).length > 0 && (
-              <div>
-                <h3 className="font-semibold mb-2 text-gold">Cantrips</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {stats.spellcasting.spells.filter(s => s.level === 0).map((spell, index) => (
-                    <div key={index} className="bg-muted/50 rounded-lg p-3">
-                      <p className="font-medium">{spell.name}</p>
-                      <p className="text-xs text-muted-foreground">{spell.description}</p>
+          {/* Spells by level */}
+          <div className="print-body">
+            <div className="print-col">
+              {/* Cantrips */}
+              {stats.spellcasting.spells?.filter((s: any) => s.level === 0).length > 0 && (
+                <div className="print-section">
+                  <h2 className="print-section-title">Cantrips</h2>
+                  {stats.spellcasting.spells.filter((s: any) => s.level === 0).map((spell: any, i: number) => (
+                    <div key={i} className="print-spell">
+                      <b>{spell.name}</b> — {spell.castingTime}, {spell.range}
+                      <p className="print-spell-desc">{spell.description}</p>
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
-
-            {/* Leveled Spells by Level */}
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((spellLevel) => {
-              const spellsAtLevel = stats.spellcasting?.spells?.filter(s => s.level === spellLevel) || [];
-              if (spellsAtLevel.length === 0) return null;
-              
-              return (
-                <div key={spellLevel}>
-                  <h3 className="font-semibold mb-2">Level {spellLevel} Spells</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {spellsAtLevel.map((spell, index) => (
-                      <div key={index} className="bg-muted/50 rounded-lg p-3">
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="font-medium">{spell.name}</p>
-                          {spell.prepared && (
-                            <span className="text-xs px-2 py-0.5 bg-primary/20 text-primary rounded">
-                              Prepared
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground mb-1">
-                          {spell.school} • {spell.castingTime} • {spell.range}
-                        </p>
-                        <p className="text-xs text-muted-foreground">{spell.description}</p>
+              )}
+              {[1,2,3,4].map(lvl => {
+                const spells = stats.spellcasting?.spells?.filter((s: any) => s.level === lvl) || [];
+                if (!spells.length) return null;
+                return (
+                  <div key={lvl} className="print-section">
+                    <h2 className="print-section-title">Level {lvl} Spells</h2>
+                    {spells.map((spell: any, i: number) => (
+                      <div key={i} className="print-spell">
+                        <b>{spell.name}</b>{spell.prepared ? ' ✦' : ''} — {spell.castingTime}, {spell.range}
+                        <p className="print-spell-desc">{spell.description}</p>
                       </div>
                     ))}
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Personality */}
-      <div className="mb-8">
-        <h2 className="font-display text-xl font-semibold mb-4">Personality</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="parchment-texture rounded-xl p-4 text-parchment-foreground">
-            <h3 className="font-semibold mb-2">Traits</h3>
-            <ul className="list-disc list-inside space-y-1 text-sm">
-              {stats.personality?.traits?.map((trait, i) => (
-                <li key={i}>{trait}</li>
-              ))}
-            </ul>
-          </div>
-          <div className="parchment-texture rounded-xl p-4 text-parchment-foreground">
-            <h3 className="font-semibold mb-2">Ideals</h3>
-            <ul className="list-disc list-inside space-y-1 text-sm">
-              {stats.personality?.ideals?.map((ideal, i) => (
-                <li key={i}>{ideal}</li>
-              ))}
-            </ul>
-          </div>
-          <div className="parchment-texture rounded-xl p-4 text-parchment-foreground">
-            <h3 className="font-semibold mb-2">Bonds</h3>
-            <ul className="list-disc list-inside space-y-1 text-sm">
-              {stats.personality?.bonds?.map((bond, i) => (
-                <li key={i}>{bond}</li>
-              ))}
-            </ul>
-          </div>
-          <div className="parchment-texture rounded-xl p-4 text-parchment-foreground">
-            <h3 className="font-semibold mb-2">Flaws</h3>
-            <ul className="list-disc list-inside space-y-1 text-sm">
-              {stats.personality?.flaws?.map((flaw, i) => (
-                <li key={i}>{flaw}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      {/* Backstory */}
-      {stats.backstory && (
-        <div className="mb-8">
-          <h2 className="font-display text-xl font-semibold mb-4">Backstory</h2>
-          <div className="parchment-texture rounded-xl p-6 text-parchment-foreground">
-            <p className="whitespace-pre-line text-sm leading-relaxed">{stats.backstory}</p>
+                );
+              })}
+            </div>
+            <div className="print-col">
+              {[5,6,7,8,9].map(lvl => {
+                const spells = stats.spellcasting?.spells?.filter((s: any) => s.level === lvl) || [];
+                if (!spells.length) return null;
+                return (
+                  <div key={lvl} className="print-section">
+                    <h2 className="print-section-title">Level {lvl} Spells</h2>
+                    {spells.map((spell: any, i: number) => (
+                      <div key={i} className="print-spell">
+                        <b>{spell.name}</b>{spell.prepared ? ' ✦' : ''} — {spell.castingTime}, {spell.range}
+                        <p className="print-spell-desc">{spell.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}

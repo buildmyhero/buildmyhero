@@ -7,12 +7,24 @@ import { AuthForm } from "@/components/auth/AuthForm";
 import { useAuth } from "@/hooks/useAuth";
 import { useCharacterRealtime } from "@/hooks/useCharacter";
 import { usePdfGeneration } from "@/hooks/usePdfGeneration";
-import { usePlayGuidePdf } from "@/hooks/usePlayGuidePdf";
 import { useSendCharacterEmail } from "@/hooks/useSendCharacterEmail";
-import { CharacterSheet } from "@/components/character/CharacterSheet";
 import { PortraitWithSkeleton } from "@/components/character/PortraitWithSkeleton";
 import { GenerationProgress } from "@/components/character/GenerationProgress";
-import { Shield, Heart, Zap, Eye, Sparkles, ArrowRight, Loader2, Download, BookOpen, Mail, AlertTriangle } from "lucide-react";
+import { CharacterSheet } from "@/components/character/CharacterSheet";
+import {
+  Shield, Heart, Zap, Sparkles, ArrowRight,
+  Loader2, Download, Mail, AlertTriangle, BookOpen, Swords, Star
+} from "lucide-react";
+
+function StatBadge({ icon: Icon, value, label, color }: { icon: any; value: string | number; label: string; color: string }) {
+  return (
+    <div className="bg-gradient-card rounded-xl border border-border/50 p-3 text-center flex-1">
+      <Icon className={`h-5 w-5 ${color} mx-auto mb-1`} />
+      <p className="text-xl font-bold">{value}</p>
+      <p className="text-xs text-muted-foreground">{label}</p>
+    </div>
+  );
+}
 
 export default function CharacterPreviewPage() {
   const { id } = useParams();
@@ -20,7 +32,6 @@ export default function CharacterPreviewPage() {
   const { user } = useAuth();
   const { data: character, isLoading, error } = useCharacterRealtime(id);
   const { isGenerating: isPdfGenerating, generatePdf } = usePdfGeneration();
-  const { isGenerating: isPlayGuidePdfGenerating, generatePlayGuidePdf } = usePlayGuidePdf();
   const { isSending: isEmailSending, sendEmail } = useSendCharacterEmail();
   const [guestEmail, setGuestEmail] = useState("");
   const [emailSent, setEmailSent] = useState(false);
@@ -45,19 +56,14 @@ export default function CharacterPreviewPage() {
           <div className="text-center max-w-md">
             <Shield className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
             <h1 className="font-display text-2xl font-bold mb-2">Character Not Found</h1>
-            <p className="text-muted-foreground mb-6">
-              This character doesn't exist or has been deleted.
-            </p>
-            <Link to="/">
-              <Button variant="gold">Create a New Character</Button>
-            </Link>
+            <p className="text-muted-foreground mb-6">This character doesn't exist or has been deleted.</p>
+            <Link to="/"><Button variant="gold">Create a New Character</Button></Link>
           </div>
         </div>
       </Layout>
     );
   }
 
-  // Handle generation failure
   if (character.status === 'error') {
     return (
       <Layout>
@@ -65,19 +71,14 @@ export default function CharacterPreviewPage() {
           <div className="text-center max-w-md">
             <AlertTriangle className="h-16 w-16 text-destructive mx-auto mb-4" />
             <h1 className="font-display text-2xl font-bold mb-2">Generation Failed</h1>
-            <p className="text-muted-foreground mb-6">
-              Something went wrong while creating your character. This is usually a temporary issue — please try again.
-            </p>
-            <Link to="/">
-              <Button variant="gold">Try Again</Button>
-            </Link>
+            <p className="text-muted-foreground mb-6">Something went wrong. Please try again.</p>
+            <Link to="/"><Button variant="gold">Try Again</Button></Link>
           </div>
         </div>
       </Layout>
     );
   }
 
-  // Show generation progress while still generating
   if (character.status === 'generating') {
     return (
       <Layout>
@@ -89,9 +90,6 @@ export default function CharacterPreviewPage() {
     );
   }
 
-  // At this point status === 'complete'. If character_data is still empty,
-  // the hook's applyCharacter re-fetch is in flight — show a brief spinner
-  // instead of the old stuck "Character data is still loading..." state.
   const stats = (
     character.character_data &&
     typeof character.character_data === 'object' &&
@@ -111,22 +109,17 @@ export default function CharacterPreviewPage() {
     );
   }
 
+  // Pull a few highlight features to tease
+  const highlightFeatures = stats.features?.slice(0, 3) || [];
+
+  // Parse play guide into sections — grab just Combat Tactics snippet
+  const playGuide = character.play_guide_content || '';
+  const combatSection = playGuide.split('## ')[1] || '';
+  const combatSnippet = combatSection.split('\n').filter((l: string) => l.startsWith('-')).slice(0, 3).join('\n');
+
   const handleDownloadPdf = async () => {
     if (!user) { navigate("/signup"); return; }
     await generatePdf(character);
-  };
-
-  const handleDownloadPlayGuide = async () => {
-    if (!user) { navigate("/signup"); return; }
-    if (character.play_guide_content) {
-      await generatePlayGuidePdf({
-        characterName: character.character_name,
-        characterClass: character.character_class,
-        race: character.race,
-        level: character.level,
-        playGuideContent: character.play_guide_content,
-      });
-    }
   };
 
   const handleSendGuestEmail = async () => {
@@ -138,10 +131,13 @@ export default function CharacterPreviewPage() {
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
-          {/* Left Column */}
-          <div className="space-y-6 animate-fade-in">
+      <div className="container mx-auto px-4 py-8 max-w-5xl">
+
+        {/* ── HERO SECTION ─────────────────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+
+          {/* Portrait + name */}
+          <div className="space-y-4 animate-fade-in">
             <div className="relative overflow-hidden rounded-2xl border border-border/50 shadow-card">
               <PortraitWithSkeleton
                 portraitUrl={character.portrait_url}
@@ -150,11 +146,10 @@ export default function CharacterPreviewPage() {
                 className="w-full aspect-square"
               />
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background to-transparent p-6">
-                <h1 className="font-display text-3xl md:text-4xl font-bold text-foreground">
-                  {character.character_name}
-                </h1>
+                <h1 className="font-display text-3xl md:text-4xl font-bold">{character.character_name}</h1>
                 <p className="text-lg text-muted-foreground">
                   Level {character.level} {character.race} {character.character_class}
+                  {stats.subclass && ` — ${stats.subclass}`}
                 </p>
               </div>
               <div className="absolute top-4 right-4">
@@ -164,124 +159,91 @@ export default function CharacterPreviewPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              <div className="bg-gradient-card rounded-xl border border-border/50 p-4 text-center">
-                <Heart className="h-6 w-6 text-destructive mx-auto mb-2" />
-                <p className="text-2xl font-bold">{stats.hitPoints?.maximum || '—'}</p>
-                <p className="text-xs text-muted-foreground">Hit Points</p>
-              </div>
-              <div className="bg-gradient-card rounded-xl border border-border/50 p-4 text-center">
-                <Shield className="h-6 w-6 text-primary mx-auto mb-2" />
-                <p className="text-2xl font-bold">{stats.armorClass || '—'}</p>
-                <p className="text-xs text-muted-foreground">Armor Class</p>
-              </div>
-              <div className="bg-gradient-card rounded-xl border border-border/50 p-4 text-center">
-                <Zap className="h-6 w-6 text-gold mx-auto mb-2" />
-                <p className="text-2xl font-bold">+{stats.proficiencyBonus || 2}</p>
-                <p className="text-xs text-muted-foreground">Proficiency</p>
-              </div>
+            {/* Quick stats row */}
+            <div className="flex gap-3">
+              <StatBadge icon={Heart} value={stats.hitPoints?.maximum || '—'} label="HP" color="text-destructive" />
+              <StatBadge icon={Shield} value={stats.armorClass || '—'} label="AC" color="text-primary" />
+              <StatBadge icon={Zap} value={`+${stats.proficiencyBonus || 2}`} label="Prof" color="text-gold" />
+              <StatBadge icon={Swords} value={stats.speed ? `${stats.speed}ft` : '30ft'} label="Speed" color="text-muted-foreground" />
             </div>
 
-            <div className="bg-gradient-card rounded-xl border border-border/50 p-6">
-              <h3 className="font-display text-lg font-semibold mb-4">Ability Scores</h3>
-              <div className="grid grid-cols-6 gap-2 text-center">
-                {stats.abilityScores && Object.entries(stats.abilityScores).map(([ability, score]) => {
-                  const modifier = stats.abilityModifiers?.[ability as keyof typeof stats.abilityModifiers] || 0;
+            {/* Ability scores */}
+            <div className="bg-gradient-card rounded-xl border border-border/50 p-4">
+              <h3 className="font-display text-sm font-semibold uppercase text-muted-foreground mb-3">Ability Scores</h3>
+              <div className="grid grid-cols-6 gap-1 text-center">
+                {stats.abilityScores && Object.entries(stats.abilityScores).map(([ability, score]: [string, any]) => {
+                  const mod = stats.abilityModifiers?.[ability] || 0;
                   return (
-                    <div key={ability} className="space-y-1">
+                    <div key={ability} className="space-y-0.5">
                       <p className="text-xs uppercase text-muted-foreground">{ability.slice(0, 3)}</p>
-                      <p className="text-xl font-bold">{String(score)}</p>
-                      <p className="text-xs text-muted-foreground">({modifier >= 0 ? '+' : ''}{modifier})</p>
+                      <p className="text-lg font-bold">{score}</p>
+                      <p className="text-xs text-primary font-semibold">{mod >= 0 ? `+${mod}` : mod}</p>
                     </div>
                   );
                 })}
               </div>
             </div>
 
-            {stats.features && stats.features.length > 0 && (
-              <div className="bg-gradient-card rounded-xl border border-border/50 p-6">
-                <h3 className="font-display text-lg font-semibold mb-4">Features</h3>
-                <ul className="space-y-2">
-                  {stats.features.slice(0, 3).map((feature: any, index: number) => (
-                    <li key={index} className="flex items-start gap-2">
-                      <Sparkles className="h-4 w-4 text-gold mt-0.5 flex-shrink-0" />
-                      <div>
-                        <p className="font-medium">{feature.name}</p>
-                        <p className="text-sm text-muted-foreground line-clamp-2">{feature.description}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-                {stats.features.length > 3 && (
-                  <Link to={`/character/${character.id}`} className="inline-flex items-center gap-1 text-sm text-primary hover:underline mt-4">
-                    <Eye className="h-4 w-4" />
-                    View all {stats.features.length} features
-                  </Link>
-                )}
-              </div>
-            )}
-
-            <div className="parchment-texture rounded-xl p-6 text-parchment-foreground">
-              <h3 className="font-display text-lg font-semibold mb-2">Original Concept</h3>
+            {/* Concept chip */}
+            <div className="parchment-texture rounded-xl p-4 text-parchment-foreground">
+              <p className="text-xs uppercase font-semibold mb-1 opacity-60">Original Concept</p>
               <p className="text-sm italic">"{character.concept}"</p>
             </div>
           </div>
 
-          {/* Right Column */}
-          <div className="animate-slide-in-right" style={{ animationDelay: "200ms" }}>
+          {/* Right column — signup CTA */}
+          <div className="animate-slide-in-right flex flex-col gap-5" style={{ animationDelay: '150ms' }}>
             {user ? (
-              <div className="bg-gradient-card rounded-2xl border border-border/50 p-8 sticky top-24">
-                <div className="text-center mb-6">
-                  <Sparkles className="h-12 w-12 text-gold mx-auto mb-4" />
-                  <h2 className="font-display text-2xl font-bold mb-2">Character Ready!</h2>
-                  <p className="text-muted-foreground">Your character has been saved to your library.</p>
+              <div className="bg-gradient-card rounded-2xl border border-border/50 p-7 sticky top-24">
+                <div className="text-center mb-5">
+                  <Sparkles className="h-10 w-10 text-gold mx-auto mb-3" />
+                  <h2 className="font-display text-2xl font-bold mb-1">Character Ready!</h2>
+                  <p className="text-muted-foreground text-sm">Saved to your library.</p>
                 </div>
                 <div className="space-y-3">
                   <Link to={`/character/${character.id}`}>
                     <Button variant="gold" className="w-full" size="lg">
-                      View Full Character Sheet <ArrowRight className="ml-2 h-4 w-4" />
+                      Full Character Sheet <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </Link>
                   <Button variant="purple" className="w-full" size="lg" onClick={handleDownloadPdf} disabled={isPdfGenerating}>
-                    {isPdfGenerating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Generating PDF...</> : <><Download className="mr-2 h-4 w-4" />Download Character Sheet</>}
+                    {isPdfGenerating
+                      ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Generating PDF...</>
+                      : <><Download className="mr-2 h-4 w-4" />Download Character Sheet</>}
                   </Button>
-                  {character.play_guide_content && (
-                    <Button variant="outline" className="w-full" size="lg" onClick={handleDownloadPlayGuide} disabled={isPlayGuidePdfGenerating}>
-                      {isPlayGuidePdfGenerating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Generating PDF...</> : <><BookOpen className="mr-2 h-4 w-4" />Download Play Guide</>}
-                    </Button>
-                  )}
-                  <Link to="/library"><Button variant="outline" className="w-full" size="lg">Go to Library</Button></Link>
-                  <Link to="/"><Button variant="ghost" className="w-full">Create Another Character</Button></Link>
+                  <Link to="/library"><Button variant="outline" className="w-full" size="lg">My Library</Button></Link>
+                  <Link to="/"><Button variant="ghost" className="w-full">Create Another</Button></Link>
                 </div>
               </div>
             ) : (
-              <div className="sticky top-24 space-y-6">
-                <div className="text-center mb-6">
-                  <Sparkles className="h-12 w-12 text-gold mx-auto mb-4 animate-float" />
-                  <h2 className="font-display text-2xl font-bold mb-2">Love Your Character?</h2>
-                  <p className="text-muted-foreground">Sign up to save it and download your character sheet PDF!</p>
+              <div className="sticky top-24 space-y-5">
+                <div className="text-center">
+                  <Sparkles className="h-10 w-10 text-gold mx-auto mb-3 animate-float" />
+                  <h2 className="font-display text-2xl font-bold mb-1">Love this character?</h2>
+                  <p className="text-muted-foreground text-sm">Create a free account to save them, download the full character sheet PDF, and build your library.</p>
                 </div>
                 <AuthForm mode="signup" redirectTo={`/character/${id}`} />
                 {!emailSent ? (
-                  <div className="bg-gradient-card rounded-xl border border-border/50 p-6">
-                    <h3 className="font-display text-lg font-semibold mb-2 flex items-center gap-2">
-                      <Mail className="h-5 w-5 text-gold" />Get it emailed to you
+                  <div className="bg-gradient-card rounded-xl border border-border/50 p-5">
+                    <h3 className="font-display text-base font-semibold mb-1 flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-gold" />Email it to yourself
                     </h3>
-                    <p className="text-sm text-muted-foreground mb-4">Enter your email to receive this character sheet (no account required)</p>
+                    <p className="text-xs text-muted-foreground mb-3">No account required</p>
                     <div className="flex gap-2">
-                      <Input type="email" placeholder="your@email.com" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} className="flex-1" />
-                      <Button variant="gold" onClick={handleSendGuestEmail} disabled={isEmailSending || !guestEmail}>
+                      <Input type="email" placeholder="your@email.com" value={guestEmail}
+                        onChange={(e) => setGuestEmail(e.target.value)} className="flex-1 h-9" />
+                      <Button variant="gold" size="sm" onClick={handleSendGuestEmail} disabled={isEmailSending || !guestEmail}>
                         {isEmailSending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send'}
                       </Button>
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-6 text-center">
-                    <p className="text-green-400 font-medium">✓ Character emailed! Check your inbox.</p>
+                  <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 text-center">
+                    <p className="text-green-400 font-medium text-sm">✓ Check your inbox!</p>
                   </div>
                 )}
                 <div className="text-center">
-                  <Link to={`/character/${character.id}`} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  <Link to={`/character/${character.id}`} className="text-sm text-muted-foreground hover:text-foreground">
                     Continue without account →
                   </Link>
                 </div>
@@ -289,9 +251,123 @@ export default function CharacterPreviewPage() {
             )}
           </div>
         </div>
-        <div className="mt-12 print:mt-0" id="character-sheet-wrapper">
-          <CharacterSheet character={character} />
+
+        {/* ── FLAVOR SECTIONS ──────────────────────────── */}
+
+        {/* Signature Abilities */}
+        {highlightFeatures.length > 0 && (
+          <section className="mb-10 animate-fade-in">
+            <h2 className="font-display text-2xl font-bold mb-4 flex items-center gap-2">
+              <Star className="h-6 w-6 text-gold" />Signature Abilities
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {highlightFeatures.map((feature: any, i: number) => (
+                <div key={i} className="bg-gradient-card rounded-xl border border-border/50 p-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-semibold">{feature.name}</h3>
+                    <span className="text-xs px-2 py-0.5 bg-primary/20 text-primary rounded">{feature.source}</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground line-clamp-4">{feature.description}</p>
+                </div>
+              ))}
+            </div>
+            {stats.features?.length > 3 && (
+              <p className="text-sm text-muted-foreground mt-3">
+                + {stats.features.length - 3} more abilities — <Link to={`/character/${character.id}`} className="text-primary hover:underline">see full sheet →</Link>
+              </p>
+            )}
+          </section>
+        )}
+
+        {/* How to Play Teaser */}
+        {combatSnippet && (
+          <section className="mb-10 animate-fade-in">
+            <h2 className="font-display text-2xl font-bold mb-4 flex items-center gap-2">
+              <BookOpen className="h-6 w-6 text-primary" />How to Play This Character
+            </h2>
+            <div className="bg-gradient-card rounded-xl border border-border/50 p-6">
+              <h3 className="font-semibold text-gold mb-3">⚔️ Combat Strategy</h3>
+              <ul className="space-y-2">
+                {combatSnippet.split('\n').map((tip: string, i: number) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                    <span className="text-primary mt-0.5">›</span>
+                    <span>{tip.replace(/^-\s*/, '')}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-5 pt-4 border-t border-border/30">
+                {user ? (
+                  <Link to={`/character/${character.id}`}>
+                    <Button variant="outline" size="sm">
+                      <BookOpen className="mr-2 h-4 w-4" />Read Full Play Guide
+                    </Button>
+                  </Link>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">Full play guide included with free account</p>
+                    <Link to={`/character/${character.id}`}>
+                      <Button variant="gold" size="sm">Unlock Full Guide</Button>
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Personality snapshot */}
+        {stats.personality && (
+          <section className="mb-10 animate-fade-in">
+            <h2 className="font-display text-2xl font-bold mb-4">Personality</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {stats.personality.traits?.length > 0 && (
+                <div className="parchment-texture rounded-xl p-5 text-parchment-foreground">
+                  <h3 className="font-semibold mb-2">Traits</h3>
+                  <ul className="space-y-1 text-sm">{stats.personality.traits.map((t: string, i: number) => <li key={i}>• {t}</li>)}</ul>
+                </div>
+              )}
+              {stats.personality.ideals?.length > 0 && (
+                <div className="parchment-texture rounded-xl p-5 text-parchment-foreground">
+                  <h3 className="font-semibold mb-2">Ideals</h3>
+                  <ul className="space-y-1 text-sm">{stats.personality.ideals.map((t: string, i: number) => <li key={i}>• {t}</li>)}</ul>
+                </div>
+              )}
+              {stats.personality.bonds?.length > 0 && (
+                <div className="parchment-texture rounded-xl p-5 text-parchment-foreground">
+                  <h3 className="font-semibold mb-2">Bonds</h3>
+                  <ul className="space-y-1 text-sm">{stats.personality.bonds.map((t: string, i: number) => <li key={i}>• {t}</li>)}</ul>
+                </div>
+              )}
+              {stats.personality.flaws?.length > 0 && (
+                <div className="parchment-texture rounded-xl p-5 text-parchment-foreground">
+                  <h3 className="font-semibold mb-2">Flaws</h3>
+                  <ul className="space-y-1 text-sm">{stats.personality.flaws.map((t: string, i: number) => <li key={i}>• {t}</li>)}</ul>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* Bottom CTA for non-logged-in users */}
+        {!user && (
+          <div className="bg-gradient-card rounded-2xl border border-gold/30 p-8 text-center mb-10">
+            <Sparkles className="h-12 w-12 text-gold mx-auto mb-4" />
+            <h2 className="font-display text-3xl font-bold mb-2">Ready to Play?</h2>
+            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+              Create a free account to save {character.character_name}, download the printable character sheet, and build your entire party.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <Link to="/signup"><Button variant="gold" size="lg">Create Free Account</Button></Link>
+              <Link to={`/character/${character.id}`}><Button variant="outline" size="lg">View Full Sheet</Button></Link>
+            </div>
+          </div>
+        )}
+
+        {/* Hidden full character sheet for PDF generation */}
+        <div className="sr-only" id="character-sheet-wrapper">
+          <CharacterSheet character={character} forPrint={true} />
         </div>
+
       </div>
     </Layout>
   );
