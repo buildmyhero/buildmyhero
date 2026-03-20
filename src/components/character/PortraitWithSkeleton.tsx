@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { User, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PortraitWithSkeletonProps {
   portraitUrl: string | null;
@@ -22,48 +23,71 @@ export function PortraitWithSkeleton({
 }: PortraitWithSkeletonProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const [pollCount, setPollCount] = useState(0);
+  // Start with whatever url we already have (may already be populated)
   const [currentUrl, setCurrentUrl] = useState(portraitUrl);
+  const [gaveUp, setGaveUp] = useState(false);
+  const pollCountRef = useRef(0);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Poll for portrait if it's still being generated
+  // When the prop changes (parent re-renders with a new URL), adopt it immediately
   useEffect(() => {
-    if (!portraitUrl && pollCount < 30) {
-      const timer = setTimeout(async () => {
-        try {
-          // Check if portrait is now available by fetching the character
-          const response = await fetch(
-            `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/characters?id=eq.${characterId}&select=portrait_url`,
-            {
-              headers: {
-                'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-              }
-            }
-          );
-          const data = await response.json();
-          if (data?.[0]?.portrait_url) {
-            setCurrentUrl(data[0].portrait_url);
-          } else {
-            setPollCount(prev => prev + 1);
-          }
-        } catch (error) {
-          console.error('Failed to poll for portrait:', error);
-          setPollCount(prev => prev + 1);
-        }
-      }, 3000); // Poll every 3 seconds
-
-      return () => clearTimeout(timer);
-    }
-  }, [portraitUrl, characterId, pollCount]);
-
-  // Update current URL when prop changes
-  useEffect(() => {
-    if (portraitUrl) {
+    if (portraitUrl && portraitUrl !== currentUrl) {
       setCurrentUrl(portraitUrl);
     }
   }, [portraitUrl]);
 
-  const showLoading = isGenerating || (!currentUrl && pollCount < 30);
-  const showPlaceholder = !currentUrl && pollCount >= 30;
+  // Poll Supabase directly for portrait_url while it's null
+  // Uses the supabase client (already configured) instead of raw fetch
+  // to avoid env var issues. Polls up to 60 times (3 min) before giving up.
+  useEffect(() => {
+    if (currentUrl) return; // Already have it — nothing to do
+    if (gaveUp) return;
+    if (!characterId) return;
+
+    let cancelled = false;
+    pollCountRef.current = 0;
+
+    const poll = async () => {
+      if (cancelled) return;
+      if (pollCountRef.current >= 60) {
+        setGaveUp(true);
+        return;
+      }
+
+      pollCountRef.current += 1;
+
+      try {
+        const { data } = await supabase
+          .from('characters')
+          .select('portrait_url')
+          .eq('id', characterId)
+          .single();
+
+        if (data?.portrait_url) {
+          if (!cancelled) setCurrentUrl(data.portrait_url);
+          return; // Stop polling
+        }
+      } catch (err) {
+        console.error('Portrait poll error:', err);
+      }
+
+      // Schedule next poll in 3 seconds
+      if (!cancelled) {
+        timerRef.current = setTimeout(poll, 3000);
+      }
+    };
+
+    // Start first poll after a short delay so the edge function
+    // has time to begin uploading
+    timerRef.current = setTimeout(poll, 2000);
+
+    return () => {
+      cancelled = true;
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [characterId, currentUrl, gaveUp]);
+
+  const showLoading = isGenerating || (!currentUrl && !gaveUp);
 
   if (showLoading) {
     return (
@@ -79,7 +103,7 @@ export function PortraitWithSkeleton({
     );
   }
 
-  if (showPlaceholder || imageError) {
+  if (gaveUp || imageError) {
     return (
       <div className={`relative bg-gradient-card flex flex-col items-center justify-center ${className}`}>
         <User className="h-20 w-20 text-muted-foreground/30 mb-4" />
