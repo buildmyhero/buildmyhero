@@ -57,7 +57,7 @@ export default function CharacterPreviewPage() {
     );
   }
 
-  // FIX Bug 2: handle error status — previously fell through to infinite spinner
+  // Handle generation failure
   if (character.status === 'error') {
     return (
       <Layout>
@@ -77,7 +77,7 @@ export default function CharacterPreviewPage() {
     );
   }
 
-  // Show generation progress if still generating
+  // Show generation progress while still generating
   if (character.status === 'generating') {
     return (
       <Layout>
@@ -89,9 +89,14 @@ export default function CharacterPreviewPage() {
     );
   }
 
-  const stats = (character.character_data && typeof character.character_data === 'object' && Object.keys(character.character_data as any).length > 0)
-    ? (character.character_data as any)
-    : null;
+  // At this point status === 'complete'. If character_data is still empty,
+  // the hook's applyCharacter re-fetch is in flight — show a brief spinner
+  // instead of the old stuck "Character data is still loading..." state.
+  const stats = (
+    character.character_data &&
+    typeof character.character_data === 'object' &&
+    Object.keys(character.character_data as any).length > 0
+  ) ? (character.character_data as any) : null;
 
   if (!stats) {
     return (
@@ -99,7 +104,7 @@ export default function CharacterPreviewPage() {
         <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
           <div className="text-center">
             <Loader2 className="h-12 w-12 text-primary mx-auto mb-4 animate-spin" />
-            <p className="text-muted-foreground">Character data is still loading...</p>
+            <p className="text-muted-foreground">Finalising your character...</p>
           </div>
         </div>
       </Layout>
@@ -107,18 +112,12 @@ export default function CharacterPreviewPage() {
   }
 
   const handleDownloadPdf = async () => {
-    if (!user) {
-      navigate("/signup");
-      return;
-    }
+    if (!user) { navigate("/signup"); return; }
     await generatePdf(character);
   };
 
   const handleDownloadPlayGuide = async () => {
-    if (!user) {
-      navigate("/signup");
-      return;
-    }
+    if (!user) { navigate("/signup"); return; }
     if (character.play_guide_content) {
       await generatePlayGuidePdf({
         characterName: character.character_name,
@@ -133,9 +132,7 @@ export default function CharacterPreviewPage() {
   const handleSendGuestEmail = async () => {
     if (guestEmail && id) {
       const success = await sendEmail(id, guestEmail);
-      if (success) {
-        setEmailSent(true);
-      }
+      if (success) setEmailSent(true);
     }
   };
 
@@ -143,9 +140,8 @@ export default function CharacterPreviewPage() {
     <Layout>
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
-          {/* Left Column - Character Info */}
+          {/* Left Column */}
           <div className="space-y-6 animate-fade-in">
-            {/* Portrait */}
             <div className="relative overflow-hidden rounded-2xl border border-border/50 shadow-card">
               <PortraitWithSkeleton
                 portraitUrl={character.portrait_url}
@@ -153,8 +149,6 @@ export default function CharacterPreviewPage() {
                 characterId={character.id}
                 className="w-full aspect-square"
               />
-
-              {/* Overlay with name */}
               <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background to-transparent p-6">
                 <h1 className="font-display text-3xl md:text-4xl font-bold text-foreground">
                   {character.character_name}
@@ -163,8 +157,6 @@ export default function CharacterPreviewPage() {
                   Level {character.level} {character.race} {character.character_class}
                 </p>
               </div>
-
-              {/* Ruleset badge */}
               <div className="absolute top-4 right-4">
                 <span className="px-3 py-1 text-sm font-medium bg-primary/80 text-primary-foreground rounded-full">
                   D&D {character.ruleset}
@@ -172,7 +164,6 @@ export default function CharacterPreviewPage() {
               </div>
             </div>
 
-            {/* Quick Stats */}
             <div className="grid grid-cols-3 gap-4">
               <div className="bg-gradient-card rounded-xl border border-border/50 p-4 text-center">
                 <Heart className="h-6 w-6 text-destructive mx-auto mb-2" />
@@ -191,7 +182,6 @@ export default function CharacterPreviewPage() {
               </div>
             </div>
 
-            {/* Ability Scores Preview */}
             <div className="bg-gradient-card rounded-xl border border-border/50 p-6">
               <h3 className="font-display text-lg font-semibold mb-4">Ability Scores</h3>
               <div className="grid grid-cols-6 gap-2 text-center">
@@ -199,20 +189,15 @@ export default function CharacterPreviewPage() {
                   const modifier = stats.abilityModifiers?.[ability as keyof typeof stats.abilityModifiers] || 0;
                   return (
                     <div key={ability} className="space-y-1">
-                      <p className="text-xs uppercase text-muted-foreground">
-                        {ability.slice(0, 3)}
-                      </p>
+                      <p className="text-xs uppercase text-muted-foreground">{ability.slice(0, 3)}</p>
                       <p className="text-xl font-bold">{String(score)}</p>
-                      <p className="text-xs text-muted-foreground">
-                        ({modifier >= 0 ? '+' : ''}{modifier})
-                      </p>
+                      <p className="text-xs text-muted-foreground">({modifier >= 0 ? '+' : ''}{modifier})</p>
                     </div>
                   );
                 })}
               </div>
             </div>
 
-            {/* Features Preview */}
             {stats.features && stats.features.length > 0 && (
               <div className="bg-gradient-card rounded-xl border border-border/50 p-6">
                 <h3 className="font-display text-lg font-semibold mb-4">Features</h3>
@@ -222,18 +207,13 @@ export default function CharacterPreviewPage() {
                       <Sparkles className="h-4 w-4 text-gold mt-0.5 flex-shrink-0" />
                       <div>
                         <p className="font-medium">{feature.name}</p>
-                        <p className="text-sm text-muted-foreground line-clamp-2">
-                          {feature.description}
-                        </p>
+                        <p className="text-sm text-muted-foreground line-clamp-2">{feature.description}</p>
                       </div>
                     </li>
                   ))}
                 </ul>
                 {stats.features.length > 3 && (
-                  <Link
-                    to={`/character/${character.id}`}
-                    className="inline-flex items-center gap-1 text-sm text-primary hover:underline mt-4"
-                  >
+                  <Link to={`/character/${character.id}`} className="inline-flex items-center gap-1 text-sm text-primary hover:underline mt-4">
                     <Eye className="h-4 w-4" />
                     View all {stats.features.length} features
                   </Link>
@@ -241,144 +221,67 @@ export default function CharacterPreviewPage() {
               </div>
             )}
 
-            {/* Concept */}
             <div className="parchment-texture rounded-xl p-6 text-parchment-foreground">
               <h3 className="font-display text-lg font-semibold mb-2">Original Concept</h3>
               <p className="text-sm italic">"{character.concept}"</p>
             </div>
           </div>
 
-          {/* Right Column - Signup CTA or Actions */}
+          {/* Right Column */}
           <div className="animate-slide-in-right" style={{ animationDelay: "200ms" }}>
             {user ? (
               <div className="bg-gradient-card rounded-2xl border border-border/50 p-8 sticky top-24">
                 <div className="text-center mb-6">
                   <Sparkles className="h-12 w-12 text-gold mx-auto mb-4" />
-                  <h2 className="font-display text-2xl font-bold mb-2">
-                    Character Ready!
-                  </h2>
-                  <p className="text-muted-foreground">
-                    Your character has been saved to your library.
-                  </p>
+                  <h2 className="font-display text-2xl font-bold mb-2">Character Ready!</h2>
+                  <p className="text-muted-foreground">Your character has been saved to your library.</p>
                 </div>
-
                 <div className="space-y-3">
                   <Link to={`/character/${character.id}`}>
                     <Button variant="gold" className="w-full" size="lg">
-                      View Full Character Sheet
-                      <ArrowRight className="ml-2 h-4 w-4" />
+                      View Full Character Sheet <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </Link>
-                  <Button
-                    variant="purple"
-                    className="w-full"
-                    size="lg"
-                    onClick={handleDownloadPdf}
-                    disabled={isPdfGenerating}
-                  >
-                    {isPdfGenerating ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Generating PDF...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="mr-2 h-4 w-4" />
-                        Download Character Sheet
-                      </>
-                    )}
+                  <Button variant="purple" className="w-full" size="lg" onClick={handleDownloadPdf} disabled={isPdfGenerating}>
+                    {isPdfGenerating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Generating PDF...</> : <><Download className="mr-2 h-4 w-4" />Download Character Sheet</>}
                   </Button>
                   {character.play_guide_content && (
-                    <Button
-                      variant="outline"
-                      className="w-full"
-                      size="lg"
-                      onClick={handleDownloadPlayGuide}
-                      disabled={isPlayGuidePdfGenerating}
-                    >
-                      {isPlayGuidePdfGenerating ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Generating PDF...
-                        </>
-                      ) : (
-                        <>
-                          <BookOpen className="mr-2 h-4 w-4" />
-                          Download Play Guide
-                        </>
-                      )}
+                    <Button variant="outline" className="w-full" size="lg" onClick={handleDownloadPlayGuide} disabled={isPlayGuidePdfGenerating}>
+                      {isPlayGuidePdfGenerating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Generating PDF...</> : <><BookOpen className="mr-2 h-4 w-4" />Download Play Guide</>}
                     </Button>
                   )}
-                  <Link to="/library">
-                    <Button variant="outline" className="w-full" size="lg">
-                      Go to Library
-                    </Button>
-                  </Link>
-                  <Link to="/">
-                    <Button variant="ghost" className="w-full">
-                      Create Another Character
-                    </Button>
-                  </Link>
+                  <Link to="/library"><Button variant="outline" className="w-full" size="lg">Go to Library</Button></Link>
+                  <Link to="/"><Button variant="ghost" className="w-full">Create Another Character</Button></Link>
                 </div>
               </div>
             ) : (
               <div className="sticky top-24 space-y-6">
                 <div className="text-center mb-6">
                   <Sparkles className="h-12 w-12 text-gold mx-auto mb-4 animate-float" />
-                  <h2 className="font-display text-2xl font-bold mb-2">
-                    Love Your Character?
-                  </h2>
-                  <p className="text-muted-foreground">
-                    Sign up to save it and download your character sheet PDF!
-                  </p>
+                  <h2 className="font-display text-2xl font-bold mb-2">Love Your Character?</h2>
+                  <p className="text-muted-foreground">Sign up to save it and download your character sheet PDF!</p>
                 </div>
-
                 <AuthForm mode="signup" redirectTo={`/character/${id}`} />
-
-                {/* Guest Email Capture */}
                 {!emailSent ? (
                   <div className="bg-gradient-card rounded-xl border border-border/50 p-6">
                     <h3 className="font-display text-lg font-semibold mb-2 flex items-center gap-2">
-                      <Mail className="h-5 w-5 text-gold" />
-                      Get it emailed to you
+                      <Mail className="h-5 w-5 text-gold" />Get it emailed to you
                     </h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Enter your email to receive this character sheet (no account required)
-                    </p>
+                    <p className="text-sm text-muted-foreground mb-4">Enter your email to receive this character sheet (no account required)</p>
                     <div className="flex gap-2">
-                      <Input
-                        type="email"
-                        placeholder="your@email.com"
-                        value={guestEmail}
-                        onChange={(e) => setGuestEmail(e.target.value)}
-                        className="flex-1"
-                      />
-                      <Button
-                        variant="gold"
-                        onClick={handleSendGuestEmail}
-                        disabled={isEmailSending || !guestEmail}
-                      >
-                        {isEmailSending ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          'Send'
-                        )}
+                      <Input type="email" placeholder="your@email.com" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)} className="flex-1" />
+                      <Button variant="gold" onClick={handleSendGuestEmail} disabled={isEmailSending || !guestEmail}>
+                        {isEmailSending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send'}
                       </Button>
                     </div>
                   </div>
                 ) : (
                   <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-6 text-center">
-                    <p className="text-green-400 font-medium">
-                      ✓ Character emailed! Check your inbox.
-                    </p>
+                    <p className="text-green-400 font-medium">✓ Character emailed! Check your inbox.</p>
                   </div>
                 )}
-
                 <div className="text-center">
-                  <Link
-                    to={`/character/${character.id}`}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
+                  <Link to={`/character/${character.id}`} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                     Continue without account →
                   </Link>
                 </div>
@@ -386,8 +289,6 @@ export default function CharacterPreviewPage() {
             )}
           </div>
         </div>
-
-        {/* Full Character Sheet (hidden, used for PDF generation) */}
         <div className="mt-12 print:mt-0" id="character-sheet-wrapper">
           <CharacterSheet character={character} />
         </div>

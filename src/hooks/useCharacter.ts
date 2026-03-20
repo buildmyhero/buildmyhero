@@ -29,6 +29,14 @@ function transformCharacter(row: any): Character {
   };
 }
 
+function hasCharacterData(char: Character): boolean {
+  return !!(
+    char.character_data &&
+    typeof char.character_data === 'object' &&
+    Object.keys(char.character_data as any).length > 0
+  );
+}
+
 export function useCharacter(id: string | undefined) {
   return useQuery({
     queryKey: ['character', id],
@@ -49,14 +57,14 @@ export function useCharacter(id: string | undefined) {
       return transformCharacter(data);
     },
     enabled: !!id,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5,
   });
 }
 
-// Real-time subscription hook for generation progress
-// Uses both Supabase realtime AND a polling fallback every 3s while generating.
-// The polling fallback ensures completion is detected even if realtime is not
-// enabled on the characters table in the Supabase dashboard.
+// Real-time hook with polling fallback.
+// Polls every 3s while generating. When status flips to 'complete' but
+// character_data is still empty (race condition between status update and
+// data update), does one immediate re-fetch to get the full record.
 export function useCharacterRealtime(id: string | undefined) {
   const [character, setCharacter] = useState<Character | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,58 +78,63 @@ export function useCharacterRealtime(id: string | undefined) {
     }
   };
 
+  const fetchCharacter = async (): Promise<Character | null> => {
+    const { data, error } = await supabase
+      .from('characters')
+      .select('*')
+      .eq('id', id!)
+      .single();
+
+    if (error) {
+      console.error('Error fetching character:', error);
+      return null;
+    }
+    return transformCharacter(data);
+  };
+
+  // When status is complete but character_data is empty, the status update
+  // and data update landed in different DB transactions. Re-fetch once after
+  // a short delay to get the fully-written record.
+  const applyCharacter = async (char: Character) => {
+    const isDone = char.status === 'complete' || char.status === 'error';
+    const dataReady = hasCharacterData(char);
+
+    if (isDone && !dataReady) {
+      console.log('Status complete but character_data empty — re-fetching in 500ms');
+      stopPolling();
+      await new Promise(r => setTimeout(r, 500));
+      const fresh = await fetchCharacter();
+      if (fresh) setCharacter(fresh);
+      return;
+    }
+
+    setCharacter(char);
+    if (isDone) stopPolling();
+  };
+
   useEffect(() => {
     if (!id) {
       setIsLoading(false);
       return;
     }
 
-    const fetchCharacter = async (): Promise<Character | null> => {
-      const { data, error } = await supabase
-        .from('characters')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (error) {
-        console.error('Error fetching character:', error);
-        return null;
-      }
-
-      return transformCharacter(data);
-    };
-
     // Initial fetch
-    fetchCharacter().then((char) => {
+    fetchCharacter().then(async (char) => {
       if (char) {
-        setCharacter(char);
-        // If already done, no need to poll or subscribe
-        if (char.status === 'complete' || char.status === 'error') {
-          stopPolling();
-        }
+        await applyCharacter(char);
       } else {
         setError(new Error('Character not found'));
       }
       setIsLoading(false);
     });
 
-    // Polling fallback: re-fetch every 3 seconds while still generating.
-    // This guarantees the UI updates even if the Supabase realtime
-    // postgres_changes subscription is not enabled on the characters table.
+    // Poll every 3s while generating
     pollIntervalRef.current = setInterval(async () => {
       const char = await fetchCharacter();
-      if (char) {
-        setCharacter(char);
-        // Stop polling once generation is finished
-        if (char.status === 'complete' || char.status === 'error') {
-          console.log('Generation finished, stopping poll. Status:', char.status);
-          stopPolling();
-        }
-      }
+      if (char) await applyCharacter(char);
     }, 3000);
 
-    // Also keep the realtime subscription — if realtime IS enabled it will
-    // update instantly; the poll is just the safety net.
+    // Realtime subscription as bonus fast-path if enabled in Supabase
     const channel = supabase
       .channel(`character-${id}`)
       .on(
@@ -132,13 +145,10 @@ export function useCharacterRealtime(id: string | undefined) {
           table: 'characters',
           filter: `id=eq.${id}`,
         },
-        (payload) => {
-          console.log('Character realtime update received:', payload);
+        async (payload) => {
+          console.log('Realtime update received:', payload.new);
           const char = transformCharacter(payload.new);
-          setCharacter(char);
-          if (char.status === 'complete' || char.status === 'error') {
-            stopPolling();
-          }
+          await applyCharacter(char);
         }
       )
       .subscribe();
@@ -158,9 +168,7 @@ export function useUserCharacters() {
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
 
-      if (!user) {
-        throw new Error('Not authenticated');
-      }
+      if (!user) throw new Error('Not authenticated');
 
       const { data, error } = await supabase
         .from('characters')
