@@ -64,7 +64,7 @@ function parseGuideSection(guide: string, heading: string, maxItems = 3): string
 
   const cleaned = listLines
     .map(cleanLine)
-    .filter(l => l.length > 5)  // skip empty / very short lines
+    .filter(l => l.length > 5)
     .slice(0, maxItems);
 
   if (cleaned.length > 0) return cleaned;
@@ -78,6 +78,20 @@ function parseGuideSection(guide: string, heading: string, maxItems = 3): string
       !l.toUpperCase().includes(upper)
     )
     .slice(0, maxItems);
+}
+
+// Reusable bullet list for play guide cards
+function GuideBullets({ tips }: { tips: string[] }) {
+  return (
+    <ul className="space-y-2">
+      {tips.map((tip, i) => (
+        <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+          <span className="text-primary mt-0.5 flex-shrink-0">›</span>
+          <span>{tip}</span>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 export default function CharacterPreviewPage() {
@@ -163,9 +177,9 @@ export default function CharacterPreviewPage() {
   const highlightFeatures = stats.features?.slice(0, 3) || [];
   const playGuide = character.play_guide_content || '';
 
-  // 1 tip for combat + roleplay, 3 for leveling
-  const combatTips   = parseGuideSection(playGuide, 'COMBAT TACTICS', 1);
-  const roleplayTips = parseGuideSection(playGuide, 'ROLEPLAY GUIDE', 1);
+  // 2 tips for combat + roleplay, 3 for leveling
+  const combatTips   = parseGuideSection(playGuide, 'COMBAT TACTICS', 2);
+  const roleplayTips = parseGuideSection(playGuide, 'ROLEPLAY GUIDE', 2);
   const levelingTips = parseGuideSection(playGuide, 'LEVELING ROADMAP', 3);
   const hasGuide = combatTips.length > 0 || roleplayTips.length > 0 || levelingTips.length > 0;
 
@@ -318,44 +332,33 @@ export default function CharacterPreviewPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
 
-              {/* Combat Tactics — 1 tip */}
+              {/* Combat Tactics — 2 bullets */}
               {combatTips.length > 0 && (
                 <div className="bg-gradient-card rounded-xl border border-border/50 p-5">
                   <h3 className="font-semibold text-gold mb-3 flex items-center gap-2">
                     <Swords className="h-4 w-4" />Combat Tactics
                   </h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    <span className="text-primary mr-1">›</span>{combatTips[0]}
-                  </p>
+                  <GuideBullets tips={combatTips} />
                 </div>
               )}
 
-              {/* Roleplay Guide — 1 tip */}
+              {/* Roleplay Guide — 2 bullets */}
               {roleplayTips.length > 0 && (
                 <div className="bg-gradient-card rounded-xl border border-border/50 p-5">
                   <h3 className="font-semibold text-gold mb-3 flex items-center gap-2">
                     <Sparkles className="h-4 w-4" />Roleplay Guide
                   </h3>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    <span className="text-primary mr-1">›</span>{roleplayTips[0]}
-                  </p>
+                  <GuideBullets tips={roleplayTips} />
                 </div>
               )}
 
-              {/* Leveling Roadmap — 3 items */}
+              {/* Leveling Roadmap — 3 bullets */}
               {levelingTips.length > 0 && (
                 <div className="bg-gradient-card rounded-xl border border-border/50 p-5">
                   <h3 className="font-semibold text-gold mb-3 flex items-center gap-2">
                     <Star className="h-4 w-4" />Leveling Roadmap
                   </h3>
-                  <ul className="space-y-2">
-                    {levelingTips.map((tip, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                        <span className="text-primary mt-0.5 flex-shrink-0">›</span>
-                        <span>{tip}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <GuideBullets tips={levelingTips} />
                 </div>
               )}
             </div>
