@@ -23,16 +23,47 @@ function StatBadge({ icon: Icon, value, label, color }: { icon: any; value: stri
   );
 }
 
-// Parse a ## section from the play guide markdown, return first N bullet points
-function parseGuideSection(guide: string, heading: string, maxBullets = 3): string[] {
+// Parse a section from the play guide markdown.
+// The AI generates sections like "## COMBAT TACTICS" with bullet points
+// using either "•" or "-" as list markers. This handles both formats
+// and also falls back to grabbing the first non-empty sentences if no
+// bullets are found.
+function parseGuideSection(guide: string, heading: string, maxItems = 3): string[] {
+  // Split on ## headings
   const sections = guide.split(/^## /m);
-  const section = sections.find(s => s.toLowerCase().startsWith(heading.toLowerCase()));
+
+  // Find the section whose first line matches the heading (case-insensitive)
+  const section = sections.find(s =>
+    s.trim().toUpperCase().startsWith(heading.toUpperCase())
+  );
   if (!section) return [];
-  return section
-    .split('\n')
-    .filter(l => l.trim().startsWith('-'))
-    .slice(0, maxBullets)
-    .map(l => l.replace(/^-\s*/, '').trim());
+
+  const lines = section.split('\n');
+
+  // Try bullet lines first (• or -)
+  const bullets = lines
+    .filter(l => {
+      const t = l.trim();
+      return t.startsWith('•') || t.startsWith('-');
+    })
+    .slice(0, maxItems)
+    .map(l => l.replace(/^[•\-]\s*/, '').trim())
+    .filter(l => l.length > 0);
+
+  if (bullets.length > 0) return bullets;
+
+  // Fallback: grab the first maxItems non-empty, non-heading sentences
+  const sentences = lines
+    .map(l => l.trim())
+    .filter(l =>
+      l.length > 20 &&
+      !l.startsWith('#') &&
+      !l.startsWith('**') &&
+      !l.toUpperCase().startsWith(heading.toUpperCase())
+    )
+    .slice(0, maxItems);
+
+  return sentences;
 }
 
 export default function CharacterPreviewPage() {
@@ -118,7 +149,7 @@ export default function CharacterPreviewPage() {
   const highlightFeatures = stats.features?.slice(0, 3) || [];
   const playGuide = character.play_guide_content || '';
 
-  // 1 tip each for combat + roleplay, 3 for leveling
+  // 1 tip for combat + roleplay, 3 for leveling
   const combatTips   = parseGuideSection(playGuide, 'COMBAT TACTICS', 1);
   const roleplayTips = parseGuideSection(playGuide, 'ROLEPLAY GUIDE', 1);
   const levelingTips = parseGuideSection(playGuide, 'LEVELING ROADMAP', 3);
@@ -297,7 +328,7 @@ export default function CharacterPreviewPage() {
                 </div>
               )}
 
-              {/* Leveling Roadmap — 3 future levels */}
+              {/* Leveling Roadmap — 3 items */}
               {levelingTips.length > 0 && (
                 <div className="bg-gradient-card rounded-xl border border-border/50 p-5">
                   <h3 className="font-semibold text-gold mb-3 flex items-center gap-2">
@@ -315,7 +346,7 @@ export default function CharacterPreviewPage() {
               )}
             </div>
 
-            {/* Locked teaser — rest of the guide */}
+            {/* Locked teaser */}
             {!user && (
               <div className="relative rounded-xl overflow-hidden border border-border/50">
                 <div className="p-5 space-y-2 select-none pointer-events-none" aria-hidden>
