@@ -23,47 +23,61 @@ function StatBadge({ icon: Icon, value, label, color }: { icon: any; value: stri
   );
 }
 
-// Parse a section from the play guide markdown.
-// The AI generates sections like "## COMBAT TACTICS" with bullet points
-// using either "•" or "-" as list markers. This handles both formats
-// and also falls back to grabbing the first non-empty sentences if no
-// bullets are found.
+// Strip markdown formatting from a line: **bold**, *italic*, leading bullets/numbers
+function cleanLine(line: string): string {
+  return line
+    .replace(/^\s*[\*\-•]\s+/, '')      // remove leading * - • bullets
+    .replace(/^\s*\d+\.\s+/, '')         // remove leading "1. " numbered list
+    .replace(/\*\*([^*]+)\*\*/g, '$1')   // remove **bold**
+    .replace(/\*([^*]+)\*/g, '$1')       // remove *italic*
+    .trim();
+}
+
+// Parse a ## section from the play guide.
+// Handles all list formats the AI uses: "* text", "1. text", "• text", "- text"
+// The heading match is case-insensitive and allows extra words after
+// (e.g. "LEVELING ROADMAP (Levels 3-20)" matches "LEVELING ROADMAP")
 function parseGuideSection(guide: string, heading: string, maxItems = 3): string[] {
-  // Split on ## headings
+  const upper = heading.toUpperCase();
+
+  // Split on ## headings (the split removes the "## " prefix)
   const sections = guide.split(/^## /m);
 
-  // Find the section whose first line matches the heading (case-insensitive)
+  // Find the section whose first line *contains* the heading keyword
   const section = sections.find(s =>
-    s.trim().toUpperCase().startsWith(heading.toUpperCase())
+    s.trim().toUpperCase().includes(upper)
   );
   if (!section) return [];
 
   const lines = section.split('\n');
 
-  // Try bullet lines first (• or -)
-  const bullets = lines
-    .filter(l => {
-      const t = l.trim();
-      return t.startsWith('•') || t.startsWith('-');
-    })
-    .slice(0, maxItems)
-    .map(l => l.replace(/^[•\-]\s*/, '').trim())
-    .filter(l => l.length > 0);
+  // Match any list item: starts with *, -, •, or a number+dot
+  const listLines = lines.filter(l => {
+    const t = l.trim();
+    return (
+      t.startsWith('*') ||
+      t.startsWith('-') ||
+      t.startsWith('•') ||
+      /^\d+\./.test(t)
+    );
+  });
 
-  if (bullets.length > 0) return bullets;
+  const cleaned = listLines
+    .map(cleanLine)
+    .filter(l => l.length > 5)  // skip empty / very short lines
+    .slice(0, maxItems);
 
-  // Fallback: grab the first maxItems non-empty, non-heading sentences
-  const sentences = lines
-    .map(l => l.trim())
+  if (cleaned.length > 0) return cleaned;
+
+  // Fallback: grab first meaningful prose sentences
+  return lines
+    .map(l => cleanLine(l))
     .filter(l =>
       l.length > 20 &&
       !l.startsWith('#') &&
-      !l.startsWith('**') &&
-      !l.toUpperCase().startsWith(heading.toUpperCase())
+      !l.toUpperCase().includes(upper)
     )
     .slice(0, maxItems);
-
-  return sentences;
 }
 
 export default function CharacterPreviewPage() {
