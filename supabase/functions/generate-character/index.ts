@@ -315,7 +315,6 @@ async function generatePlayGuide(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        // FIX Bug 1: corrected from non-existent 'google/gemini-3-flash-preview'
         model: 'google/gemini-2.5-flash-preview',
         messages: [
           { role: 'system', content: PLAY_GUIDE_PROMPT },
@@ -405,6 +404,18 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Resolve the calling user from the Authorization header (if logged in)
+    let userId: string | null = null;
+    const authHeader = req.headers.get('Authorization');
+    if (authHeader) {
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user } } = await supabase.auth.getUser(token);
+      if (user) {
+        userId = user.id;
+        console.log('Authenticated user:', userId);
+      }
+    }
+
     const characterId = crypto.randomUUID();
 
     const initialRecord = {
@@ -416,8 +427,8 @@ serve(async (req) => {
       ruleset: ruleset,
       concept: concept,
       character_data: {},
-      is_guest: true,
-      user_id: null,
+      is_guest: userId === null,
+      user_id: userId,          // assigned if logged in, null for guests
       portrait_url: null,
       status: 'generating',
       generation_progress: 5,
@@ -439,7 +450,6 @@ serve(async (req) => {
 
     await updateProgress(supabase, characterId, 15);
 
-    // FIX Bug 1: corrected from non-existent 'google/gemini-3-flash-preview'
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {

@@ -25,8 +25,14 @@ export function useCharacterGeneration() {
     setState({ isGenerating: true, error: null });
 
     try {
+      // Include the user's session token so the edge function can assign user_id
+      const { data: { session } } = await supabase.auth.getSession();
+
       const { data, error } = await supabase.functions.invoke('generate-character', {
         body: { concept, level, ruleset },
+        headers: session?.access_token
+          ? { Authorization: `Bearer ${session.access_token}` }
+          : {},
       });
 
       if (error) {
@@ -45,7 +51,6 @@ export function useCharacterGeneration() {
 
       if (data?.success && data?.character) {
         toast.success(`${data.character.character_name} has been created!`);
-        // FIX Bug 3: reset isGenerating before navigating so button unlocks if navigation fails
         setState({ isGenerating: false, error: null });
         navigate(`/character/${data.character.id}/preview`);
       } else {
