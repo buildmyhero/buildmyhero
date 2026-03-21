@@ -1,19 +1,16 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { AuthForm } from "@/components/auth/AuthForm";
 import { useAuth } from "@/hooks/useAuth";
 import { useCharacterRealtime } from "@/hooks/useCharacter";
 import { usePdfGeneration } from "@/hooks/usePdfGeneration";
-import { useSendCharacterEmail } from "@/hooks/useSendCharacterEmail";
 import { PortraitWithSkeleton } from "@/components/character/PortraitWithSkeleton";
 import { GenerationProgress } from "@/components/character/GenerationProgress";
 import { CharacterSheet } from "@/components/character/CharacterSheet";
 import {
   Shield, Heart, Zap, Sparkles, ArrowRight,
-  Loader2, Download, Mail, AlertTriangle, BookOpen, Swords, Star, Lock
+  Loader2, Download, AlertTriangle, BookOpen, Swords, Star, Lock
 } from "lucide-react";
 
 function StatBadge({ icon: Icon, value, label, color }: { icon: any; value: string | number; label: string; color: string }) {
@@ -44,9 +41,6 @@ export default function CharacterPreviewPage() {
   const { user } = useAuth();
   const { data: character, isLoading, error } = useCharacterRealtime(id);
   const { isGenerating: isPdfGenerating, generatePdf } = usePdfGeneration();
-  const { isSending: isEmailSending, sendEmail } = useSendCharacterEmail();
-  const [guestEmail, setGuestEmail] = useState("");
-  const [emailSent, setEmailSent] = useState(false);
 
   if (isLoading) {
     return (
@@ -124,22 +118,15 @@ export default function CharacterPreviewPage() {
   const highlightFeatures = stats.features?.slice(0, 3) || [];
   const playGuide = character.play_guide_content || '';
 
-  // Parse 3 sections for the preview
-  const combatTips    = parseGuideSection(playGuide, 'COMBAT TACTICS', 3);
-  const roleplayTips  = parseGuideSection(playGuide, 'ROLEPLAY GUIDE', 3);
-  const levelingTips  = parseGuideSection(playGuide, 'LEVELING ROADMAP', 3);
+  // 1 tip each for combat + roleplay, 3 for leveling
+  const combatTips   = parseGuideSection(playGuide, 'COMBAT TACTICS', 1);
+  const roleplayTips = parseGuideSection(playGuide, 'ROLEPLAY GUIDE', 1);
+  const levelingTips = parseGuideSection(playGuide, 'LEVELING ROADMAP', 3);
   const hasGuide = combatTips.length > 0 || roleplayTips.length > 0 || levelingTips.length > 0;
 
   const handleDownloadPdf = async () => {
     if (!user) { navigate("/signup"); return; }
     await generatePdf(character);
-  };
-
-  const handleSendGuestEmail = async () => {
-    if (guestEmail && id) {
-      const success = await sendEmail(id, guestEmail);
-      if (success) setEmailSent(true);
-    }
   };
 
   return (
@@ -236,25 +223,6 @@ export default function CharacterPreviewPage() {
                   <p className="text-muted-foreground text-sm">Create a free account to save them, download the full character sheet PDF, and build your library.</p>
                 </div>
                 <AuthForm mode="signup" redirectTo={`/character/${id}`} />
-                {!emailSent ? (
-                  <div className="bg-gradient-card rounded-xl border border-border/50 p-5">
-                    <h3 className="font-display text-base font-semibold mb-1 flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-gold" />Email it to yourself
-                    </h3>
-                    <p className="text-xs text-muted-foreground mb-3">No account required</p>
-                    <div className="flex gap-2">
-                      <Input type="email" placeholder="your@email.com" value={guestEmail}
-                        onChange={(e) => setGuestEmail(e.target.value)} className="flex-1 h-9" />
-                      <Button variant="gold" size="sm" onClick={handleSendGuestEmail} disabled={isEmailSending || !guestEmail}>
-                        {isEmailSending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send'}
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4 text-center">
-                    <p className="text-green-400 font-medium text-sm">✓ Check your inbox!</p>
-                  </div>
-                )}
                 <div className="text-center">
                   <Link to={`/character/${character.id}`} className="text-sm text-muted-foreground hover:text-foreground">
                     Continue without account →
@@ -305,41 +273,31 @@ export default function CharacterPreviewPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
 
-              {/* Combat Tactics */}
+              {/* Combat Tactics — 1 tip */}
               {combatTips.length > 0 && (
                 <div className="bg-gradient-card rounded-xl border border-border/50 p-5">
                   <h3 className="font-semibold text-gold mb-3 flex items-center gap-2">
                     <Swords className="h-4 w-4" />Combat Tactics
                   </h3>
-                  <ul className="space-y-2">
-                    {combatTips.map((tip, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                        <span className="text-primary mt-0.5 flex-shrink-0">›</span>
-                        <span>{tip}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    <span className="text-primary mr-1">›</span>{combatTips[0]}
+                  </p>
                 </div>
               )}
 
-              {/* Roleplay Guide */}
+              {/* Roleplay Guide — 1 tip */}
               {roleplayTips.length > 0 && (
                 <div className="bg-gradient-card rounded-xl border border-border/50 p-5">
                   <h3 className="font-semibold text-gold mb-3 flex items-center gap-2">
                     <Sparkles className="h-4 w-4" />Roleplay Guide
                   </h3>
-                  <ul className="space-y-2">
-                    {roleplayTips.map((tip, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                        <span className="text-primary mt-0.5 flex-shrink-0">›</span>
-                        <span>{tip}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    <span className="text-primary mr-1">›</span>{roleplayTips[0]}
+                  </p>
                 </div>
               )}
 
-              {/* Leveling Roadmap */}
+              {/* Leveling Roadmap — 3 future levels */}
               {levelingTips.length > 0 && (
                 <div className="bg-gradient-card rounded-xl border border-border/50 p-5">
                   <h3 className="font-semibold text-gold mb-3 flex items-center gap-2">
@@ -360,7 +318,6 @@ export default function CharacterPreviewPage() {
             {/* Locked teaser — rest of the guide */}
             {!user && (
               <div className="relative rounded-xl overflow-hidden border border-border/50">
-                {/* Blurred preview rows */}
                 <div className="p-5 space-y-2 select-none pointer-events-none" aria-hidden>
                   {['Full action economy breakdown for every combat scenario',
                     'Feat recommendations at every ASI level through level 20',
@@ -374,7 +331,6 @@ export default function CharacterPreviewPage() {
                     </div>
                   ))}
                 </div>
-                {/* Lock overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent flex flex-col items-center justify-end pb-6 px-6">
                   <Lock className="h-6 w-6 text-gold mb-2" />
                   <p className="text-sm font-semibold mb-3 text-center">
