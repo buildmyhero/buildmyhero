@@ -13,7 +13,7 @@ import { GenerationProgress } from "@/components/character/GenerationProgress";
 import { CharacterSheet } from "@/components/character/CharacterSheet";
 import {
   Shield, Heart, Zap, Sparkles, ArrowRight,
-  Loader2, Download, Mail, AlertTriangle, BookOpen, Swords, Star
+  Loader2, Download, Mail, AlertTriangle, BookOpen, Swords, Star, Lock
 } from "lucide-react";
 
 function StatBadge({ icon: Icon, value, label, color }: { icon: any; value: string | number; label: string; color: string }) {
@@ -24,6 +24,18 @@ function StatBadge({ icon: Icon, value, label, color }: { icon: any; value: stri
       <p className="text-xs text-muted-foreground">{label}</p>
     </div>
   );
+}
+
+// Parse a ## section from the play guide markdown, return first N bullet points
+function parseGuideSection(guide: string, heading: string, maxBullets = 3): string[] {
+  const sections = guide.split(/^## /m);
+  const section = sections.find(s => s.toLowerCase().startsWith(heading.toLowerCase()));
+  if (!section) return [];
+  return section
+    .split('\n')
+    .filter(l => l.trim().startsWith('-'))
+    .slice(0, maxBullets)
+    .map(l => l.replace(/^-\s*/, '').trim());
 }
 
 export default function CharacterPreviewPage() {
@@ -109,13 +121,14 @@ export default function CharacterPreviewPage() {
     );
   }
 
-  // Pull a few highlight features to tease
   const highlightFeatures = stats.features?.slice(0, 3) || [];
-
-  // Parse play guide into sections — grab just Combat Tactics snippet
   const playGuide = character.play_guide_content || '';
-  const combatSection = playGuide.split('## ')[1] || '';
-  const combatSnippet = combatSection.split('\n').filter((l: string) => l.startsWith('-')).slice(0, 3).join('\n');
+
+  // Parse 3 sections for the preview
+  const combatTips    = parseGuideSection(playGuide, 'COMBAT TACTICS', 3);
+  const roleplayTips  = parseGuideSection(playGuide, 'ROLEPLAY GUIDE', 3);
+  const levelingTips  = parseGuideSection(playGuide, 'LEVELING ROADMAP', 3);
+  const hasGuide = combatTips.length > 0 || roleplayTips.length > 0 || levelingTips.length > 0;
 
   const handleDownloadPdf = async () => {
     if (!user) { navigate("/signup"); return; }
@@ -273,45 +286,116 @@ export default function CharacterPreviewPage() {
             </div>
             {stats.features?.length > 3 && (
               <p className="text-sm text-muted-foreground mt-3">
-                + {stats.features.length - 3} more abilities — <Link to={`/character/${character.id}`} className="text-primary hover:underline">see full sheet →</Link>
+                + {stats.features.length - 3} more abilities —{' '}
+                {user
+                  ? <Link to={`/character/${character.id}`} className="text-primary hover:underline">see full sheet →</Link>
+                  : <Link to="/signup" className="text-primary hover:underline">create a free account to unlock →</Link>
+                }
               </p>
             )}
           </section>
         )}
 
-        {/* How to Play Teaser */}
-        {combatSnippet && (
+        {/* ── PLAY GUIDE ───────────────────────────────── */}
+        {hasGuide && (
           <section className="mb-10 animate-fade-in">
             <h2 className="font-display text-2xl font-bold mb-4 flex items-center gap-2">
               <BookOpen className="h-6 w-6 text-primary" />How to Play This Character
             </h2>
-            <div className="bg-gradient-card rounded-xl border border-border/50 p-6">
-              <h3 className="font-semibold text-gold mb-3">⚔️ Combat Strategy</h3>
-              <ul className="space-y-2">
-                {combatSnippet.split('\n').map((tip: string, i: number) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <span className="text-primary mt-0.5">›</span>
-                    <span>{tip.replace(/^-\s*/, '')}</span>
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-5 pt-4 border-t border-border/30">
-                {user ? (
-                  <Link to={`/character/${character.id}`}>
-                    <Button variant="outline" size="sm">
-                      <BookOpen className="mr-2 h-4 w-4" />Read Full Play Guide
-                    </Button>
-                  </Link>
-                ) : (
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">Full play guide included with free account</p>
-                    <Link to={`/character/${character.id}`}>
-                      <Button variant="gold" size="sm">Unlock Full Guide</Button>
-                    </Link>
-                  </div>
-                )}
-              </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+
+              {/* Combat Tactics */}
+              {combatTips.length > 0 && (
+                <div className="bg-gradient-card rounded-xl border border-border/50 p-5">
+                  <h3 className="font-semibold text-gold mb-3 flex items-center gap-2">
+                    <Swords className="h-4 w-4" />Combat Tactics
+                  </h3>
+                  <ul className="space-y-2">
+                    {combatTips.map((tip, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <span className="text-primary mt-0.5 flex-shrink-0">›</span>
+                        <span>{tip}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Roleplay Guide */}
+              {roleplayTips.length > 0 && (
+                <div className="bg-gradient-card rounded-xl border border-border/50 p-5">
+                  <h3 className="font-semibold text-gold mb-3 flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" />Roleplay Guide
+                  </h3>
+                  <ul className="space-y-2">
+                    {roleplayTips.map((tip, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <span className="text-primary mt-0.5 flex-shrink-0">›</span>
+                        <span>{tip}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Leveling Roadmap */}
+              {levelingTips.length > 0 && (
+                <div className="bg-gradient-card rounded-xl border border-border/50 p-5">
+                  <h3 className="font-semibold text-gold mb-3 flex items-center gap-2">
+                    <Star className="h-4 w-4" />Leveling Roadmap
+                  </h3>
+                  <ul className="space-y-2">
+                    {levelingTips.map((tip, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <span className="text-primary mt-0.5 flex-shrink-0">›</span>
+                        <span>{tip}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
+
+            {/* Locked teaser — rest of the guide */}
+            {!user && (
+              <div className="relative rounded-xl overflow-hidden border border-border/50">
+                {/* Blurred preview rows */}
+                <div className="p-5 space-y-2 select-none pointer-events-none" aria-hidden>
+                  {['Full action economy breakdown for every combat scenario',
+                    'Feat recommendations at every ASI level through level 20',
+                    'Multiclass options and synergy analysis',
+                    'Equipment upgrade priority list',
+                    'Roleplay voice and mannerism tips with example dialogue',
+                  ].map((line, i) => (
+                    <div key={i} className="flex items-center gap-2 text-sm text-muted-foreground blur-sm">
+                      <span className="text-primary">›</span>
+                      <span>{line}</span>
+                    </div>
+                  ))}
+                </div>
+                {/* Lock overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent flex flex-col items-center justify-end pb-6 px-6">
+                  <Lock className="h-6 w-6 text-gold mb-2" />
+                  <p className="text-sm font-semibold mb-3 text-center">
+                    Full play guide included with a free account
+                  </p>
+                  <Link to="/signup">
+                    <Button variant="gold" size="sm">Unlock Full Guide — It's Free</Button>
+                  </Link>
+                </div>
+              </div>
+            )}
+
+            {user && (
+              <div className="mt-2">
+                <Link to={`/character/${character.id}`}>
+                  <Button variant="outline" size="sm">
+                    <BookOpen className="mr-2 h-4 w-4" />Read Full Play Guide
+                  </Button>
+                </Link>
+              </div>
+            )}
           </section>
         )}
 
