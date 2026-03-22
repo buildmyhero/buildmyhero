@@ -10,7 +10,7 @@ import { PortraitWithSkeleton } from "@/components/character/PortraitWithSkeleto
 import { Character } from "@/types/character";
 import {
   Plus, Loader2, Library, Heart, Shield, Zap,
-  BookOpen, Printer, Download, Eye, Trash2, Sparkles, Swords
+  BookOpen, Printer, Download, Eye, Trash2, Swords
 } from "lucide-react";
 import {
   AlertDialog,
@@ -38,6 +38,14 @@ export default function LibraryPage() {
     if (!authLoading && !user) navigate("/login");
   }, [user, authLoading, navigate]);
 
+  // Auto-refresh every 4 seconds while any character is still generating
+  useEffect(() => {
+    const anyGenerating = characters?.some(c => c.status === 'generating');
+    if (!anyGenerating) return;
+    const timer = setInterval(() => refetch(), 4000);
+    return () => clearInterval(timer);
+  }, [characters, refetch]);
+
   if (authLoading || isLoading) {
     return (
       <Layout>
@@ -50,9 +58,13 @@ export default function LibraryPage() {
 
   if (!user) return null;
 
-  const featured = characters?.[0] ?? null;
-  const rest = characters?.slice(1) ?? [];
-  const total = characters?.length ?? 0;
+  // Split into complete vs still-generating
+  const complete   = characters?.filter(c => c.status !== 'generating') ?? [];
+  const generating = characters?.filter(c => c.status === 'generating') ?? [];
+
+  const featured = complete[0] ?? null;
+  const rest     = complete.slice(1);
+  const total    = characters?.length ?? 0;
   const rulesets = [...new Set(characters?.map(c => c.ruleset) ?? [])];
 
   const handleSheet = async (c: Character) => {
@@ -81,7 +93,7 @@ export default function LibraryPage() {
       const { error } = await supabase.from('characters').delete().eq('id', c.id);
       if (error) throw error;
       toast.success(`${c.character_name} deleted`);
-      refetch?.();
+      refetch();
     } catch {
       toast.error('Failed to delete character');
     }
@@ -129,6 +141,21 @@ export default function LibraryPage() {
 
         {total > 0 && (
           <>
+            {/* ── GENERATING BANNER ───────────────────── */}
+            {generating.length > 0 && (
+              <section className="mb-6 animate-fade-in">
+                <div className="bg-primary/10 border border-primary/20 rounded-xl px-5 py-4 flex items-center gap-3">
+                  <Loader2 className="h-5 w-5 text-primary animate-spin flex-shrink-0" />
+                  <p className="text-sm text-primary font-medium">
+                    {generating.length === 1
+                      ? `Generating ${generating[0].concept ? `"${generating[0].concept}"` : 'a character'}…`
+                      : `${generating.length} characters generating…`}
+                    {' '}This may take a minute.
+                  </p>
+                </div>
+              </section>
+            )}
+
             {/* ── FEATURED CHARACTER ──────────────────── */}
             {featured && (
               <section className="mb-10 animate-fade-in">
@@ -224,11 +251,16 @@ export default function LibraryPage() {
               </section>
             )}
 
-            {/* ── CHARACTER LIST ──────────────────────── */}
-            {rest.length > 0 && (
+            {/* ── CHARACTER LIST (complete + generating) ── */}
+            {(rest.length > 0 || generating.length > 0) && (
               <section className="animate-fade-in" style={{ animationDelay: '150ms' }}>
                 <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3">All Characters</p>
                 <div className="bg-gradient-card rounded-2xl border border-border/50 overflow-hidden divide-y divide-border/40">
+                  {/* Generating rows first */}
+                  {generating.map((c) => (
+                    <GeneratingRow key={c.id} character={c} />
+                  ))}
+                  {/* Complete rows */}
                   {rest.map((c) => (
                     <CharacterRow
                       key={c.id}
@@ -243,8 +275,6 @@ export default function LibraryPage() {
                 </div>
               </section>
             )}
-
-            {/* If there's only one character, show it as featured only — no list needed */}
           </>
         )}
       </div>
@@ -252,7 +282,28 @@ export default function LibraryPage() {
   );
 }
 
-// ── Character Row Component ──────────────────────────────────────────────────
+// ── Generating Row ────────────────────────────────────────────────────────────
+function GeneratingRow({ character: c }: { character: Character }) {
+  return (
+    <div className="flex items-center gap-4 px-4 py-3 opacity-70">
+      <div className="w-12 h-12 rounded-lg border border-border/50 bg-muted/30 flex items-center justify-center flex-shrink-0">
+        <Loader2 className="h-5 w-5 text-primary animate-spin" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-muted-foreground text-sm">Generating…</p>
+        <p className="text-xs text-muted-foreground truncate">
+          {c.concept ? `"${c.concept}"` : `Level ${c.level} character`}
+          {c.generation_progress > 0 && ` · ${c.generation_progress}%`}
+        </p>
+      </div>
+      <div className="hidden sm:block">
+        <span className="px-1.5 py-0.5 bg-muted/50 rounded text-xs text-muted-foreground">{c.ruleset}</span>
+      </div>
+    </div>
+  );
+}
+
+// ── Character Row ─────────────────────────────────────────────────────────────
 interface RowProps {
   character: Character;
   actionLoading: { id: string; type: string } | null;
@@ -291,7 +342,7 @@ function CharacterRow({ character: c, actionLoading, onSheet, onPlayGuide, onPri
         </p>
       </Link>
 
-      {/* Quick stats — hidden on small screens */}
+      {/* Quick stats */}
       <div className="hidden sm:flex items-center gap-3 text-xs text-muted-foreground flex-shrink-0">
         <span className="flex items-center gap-1">
           <Heart className="h-3 w-3 text-destructive" />{stats?.hitPoints?.maximum ?? '—'}
