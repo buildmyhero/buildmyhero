@@ -142,6 +142,7 @@ export interface Character {
   character_sheet_pdf_url: string | null;
   play_guide_pdf_url: string | null;
   play_guide_content: string | null;
+  leveling_guide_content: string | null;
   is_guest: boolean;
   created_at: string;
   updated_at: string;
