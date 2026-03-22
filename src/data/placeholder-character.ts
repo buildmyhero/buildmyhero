@@ -165,6 +165,7 @@ export const placeholderCharacter: Character = {
   character_sheet_pdf_url: null,
   play_guide_pdf_url: null,
   play_guide_content: null,
+  leveling_guide_content: null,
   is_guest: true,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
