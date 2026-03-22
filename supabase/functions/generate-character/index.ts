@@ -315,7 +315,7 @@ async function generatePlayGuide(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-preview',
+        model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: PLAY_GUIDE_PROMPT },
           { role: 'user', content: userPrompt }
@@ -428,7 +428,7 @@ serve(async (req) => {
       concept: concept,
       character_data: {},
       is_guest: userId === null,
-      user_id: userId,          // assigned if logged in, null for guests
+      user_id: userId,
       portrait_url: null,
       status: 'generating',
       generation_progress: 5,
@@ -457,7 +457,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-preview',
+        model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: userPrompt }
