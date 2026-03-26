@@ -9,6 +9,10 @@ interface GenerationState {
   error: string | null;
 }
 
+// Key used to persist a guest-generated character ID so it can be
+// claimed once the user signs up or logs in.
+export const PENDING_CHARACTER_KEY = 'buildmyhero_pending_character_id';
+
 export function useCharacterGeneration() {
   const navigate = useNavigate();
   const [state, setState] = useState<GenerationState>({
@@ -25,7 +29,8 @@ export function useCharacterGeneration() {
     setState({ isGenerating: true, error: null });
 
     try {
-      // Include the user's session token so the edge function can assign user_id
+      // Include session token if logged in so the character is immediately
+      // saved to the user's account. Guests get user_id = null.
       const { data: { session } } = await supabase.auth.getSession();
 
       const { data, error } = await supabase.functions.invoke('generate-character', {
@@ -50,6 +55,12 @@ export function useCharacterGeneration() {
       }
 
       if (data?.success && data?.character) {
+        // If the user is a guest, persist the character ID so AuthForm
+        // can claim it after signup/login.
+        if (!session) {
+          localStorage.setItem(PENDING_CHARACTER_KEY, data.character.id);
+        }
+
         toast.success(`${data.character.character_name} has been created!`);
         setState({ isGenerating: false, error: null });
         navigate(`/character/${data.character.id}/preview`);

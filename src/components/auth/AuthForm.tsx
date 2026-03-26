@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { PENDING_CHARACTER_KEY } from "@/hooks/useCharacterGeneration";
 import { Loader2, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -14,6 +16,32 @@ const passwordSchema = z.string().min(6, "Password must be at least 6 characters
 interface AuthFormProps {
   mode: "login" | "signup";
   redirectTo?: string;
+}
+
+// After a successful sign-in/up, claim any guest character that was
+// generated before the user had an account.
+async function claimPendingCharacter(userId: string): Promise<string | null> {
+  const pendingId = localStorage.getItem(PENDING_CHARACTER_KEY);
+  if (!pendingId) return null;
+
+  try {
+    const { error } = await supabase
+      .from('characters')
+      .update({ user_id: userId, is_guest: false })
+      .eq('id', pendingId)
+      .is('user_id', null); // only claim if still unclaimed
+
+    if (error) {
+      console.error('Failed to claim character:', error);
+      return null;
+    }
+
+    localStorage.removeItem(PENDING_CHARACTER_KEY);
+    return pendingId;
+  } catch (err) {
+    console.error('Claim error:', err);
+    return null;
+  }
 }
 
 export function AuthForm({ mode, redirectTo }: AuthFormProps) {
@@ -43,6 +71,17 @@ export function AuthForm({ mode, redirectTo }: AuthFormProps) {
     return Object.keys(newErrors).length === 0;
   };
 
+  // Shared post-auth handler: claim pending character then redirect.
+  const handlePostAuth = async (userId: string) => {
+    const claimedId = await claimPendingCharacter(userId);
+    if (claimedId) {
+      // Redirect back to the character they just generated
+      navigate(`/character/${claimedId}/preview`);
+    } else {
+      navigate(redirectTo || "/library");
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -64,7 +103,13 @@ export function AuthForm({ mode, redirectTo }: AuthFormProps) {
           return;
         }
         toast.success("Welcome back!");
-        navigate(redirectTo || "/library");
+        // Get the fresh session to get the user ID
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          await handlePostAuth(session.user.id);
+        } else {
+          navigate(redirectTo || "/library");
+        }
       } else {
         const { error } = await signUp(email, password);
         if (error) {
@@ -75,8 +120,14 @@ export function AuthForm({ mode, redirectTo }: AuthFormProps) {
           }
           return;
         }
-        toast.success("Check your email to verify your account!");
-        navigate(redirectTo || "/");
+        toast.success("Account created! Welcome to BuildMyHero.");
+        // With auto-confirm on, the user is immediately signed in
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          await handlePostAuth(session.user.id);
+        } else {
+          navigate(redirectTo || "/library");
+        }
       }
     } finally {
       setIsLoading(false);
@@ -90,6 +141,8 @@ export function AuthForm({ mode, redirectTo }: AuthFormProps) {
       toast.error("Google sign in failed. Please try again.");
       setIsLoading(false);
     }
+    // Google OAuth redirects the whole page, so claiming happens
+    // in the auth callback via useAuth's onAuthStateChange.
   };
 
   return (
