@@ -26,7 +26,7 @@ Find species whose racial abilities CREATE the flavor, not just describe it:
 - "Undead/dark themes" → Dhampir (bite, spider climb), Reborn (undead resilience), Shadar-kai (necrotic resistance)
 
 STEP 3: BE CREATIVE WITH SPECIES
-Never pick Human by default. Always ask: "Which species has a mechanical trait that BECOMES this character's signature ability?" The best builds are where players discover their species traits perfectly mirror their character concept.
+Never pick Human by default. Always ask: "Which species has a mechanical trait that BECOMES this character's signature ability?"
 
 STEP 4: MULTICLASS STRATEGICALLY
 When the concept has multiple distinct aspects, consider multiclassing:
@@ -34,32 +34,83 @@ When the concept has multiple distinct aspects, consider multiclassing:
 - Divine + arcane → Cleric/Wizard or Paladin/Warlock
 - Scholar + warrior → Artificer/Fighter
 - Nature + cunning → Ranger/Rogue
-Only multiclass when it mechanically serves the concept. Single class is fine when it covers everything.
+Only multiclass when it mechanically serves the concept.
 
 STEP 5: BACKGROUNDS AND TOOLS
-Choose backgrounds whose features and tool proficiencies reinforce the concept:
+Choose backgrounds whose features reinforce the concept:
 - Detective/investigator → Urban Bounty Hunter, Investigator
 - Noble/leader → Noble, Knight
 - Criminal/spy → Criminal, Spy variant
 - Scholar → Sage, Cloistered Scholar
 
+=== STEP 6: NAME GENERATION (CRITICAL) ===
+
+The character's name MUST feel authentic to their species and background FIRST, with a secondary thematic echo from the concept.
+
+PRIORITY ORDER:
+1. SPECIES AUTHENTICITY — use naming conventions native to that species
+2. BACKGROUND FLAVOUR — Sage = scholarly/archaic names, Criminal = street aliases, Noble = formal house names
+3. CONCEPT ECHO — optionally let one syllable subtly evoke the concept (shadow → "Umbrix", fire → "Kael", nature → "Sylvara")
+
+SPECIES NAMING CONVENTIONS:
+- Tiefling: Infernal virtue-names or corrupted celestial — Umbrix, Kael'var, Syrith, Malachar, Vesper, Zevrix, Noctis, Pyrael, Ash'mira, Cindrix
+- Drow: Flowing elvish but darker — Vira'neth, Xan'dara, Zyl'ith, Mal'veth, Driz'ara, Quillara, Shae'dryn
+- High Elf / Wood Elf: Melodic, nature or starlight — Aelindra, Caelwyn, Thalion, Sylvara, Elaryn, Miraveth, Faerindel
+- Eladrin: Seasonal or fey-touched — Aurantis, Verilas, Glorindeth, Zephyras, Solenne, Crystallis, Dawnwyn
+- Half-Elf: Blend human and elvish — Lyrian, Daevith, Cael, Mira Thorne, Senna Vael
+- Dwarf: Hard consonants, clan names, forge-references — Thordak Stonefist, Brynn Ironwall, Veldra Copperhelm, Gunda Ashveil
+- Gnome (Rock/Forest): Inventive, multi-syllable — Fizwick, Bimble Cogsworth, Zippi Tinklebright, Nyx Sprocketwing
+- Halfling: Rural, cheerful, nature references — Roswin Burrows, Pip Thistledown, Merry Goodbarrel, Tansy Willowmere
+- Human: Region-appropriate; gritty, noble, or common depending on background
+- Dragonborn: Draconic syllables, clan names — Kriv Daardendrian, Shava Norixius, Arjhan, Torinn
+- Genasi (Fire): Ember-touched — Pyrrha, Embrix, Solvar, Kael'in, Cindara, Ashvyr
+- Genasi (Water/Air/Earth): Elemental resonance — Nerith, Aequas, Storvald, Breeza, Terrawyn
+- Warforged: Designations or purpose-names — Six, Anvil, Resolve, Echo-7, Ironclad, The Witness
+- Aasimar: Celestial, gravitas — Lyriel, Seraphel, Auren, Celestine, Aurel, Dawnveil, Solace
+- Firbolg: Nature-descriptions or ancient titles — Speaks-to-Oaks, Greymoss, Thornweald, Dewdrop-on-Stone
+- Shifter: Short, primal, animalistic — Rook, Thorn, Kira, Fennix, Brak, Ashclaw, Wren
+- Changeling: Ambiguous, mask-like — Mirror, Vestige, Cassia, Nuance, Shade
+- Tabaxi: Two-part poetic — Smoke on the Water, Silver Tongue, Midnight Star, Quick-as-Shadow
+- Lizardfolk: Sibilant, primal — Ssethis, Vrixik, Tharask, Zarreth, Skivrix
+- Minotaur / Goliath: Strong, resonant — Arkanos, Vraxas, Tordek, Thuln, Stone-in-Storm
+- Shadar-kai / Reborn / Dhampir: Shadow-touched — Mourne, Ashen, Vael, Crypt, Whisper, Elara the Grey
+
+BACKGROUND MODIFIERS:
+- Sage / Scholar: Archaic suffixes or titles — "the Chronicler", "of the Third Seal", "Grayveil"
+- Criminal / Urchin: Short aliases — "Knuckle", "Twice-Dead", single name only
+- Noble: House names — "Lyrian Ashveil of House Draeven"
+- Soldier / Outlander: Strong and direct — "Brynn Ironwall", "Kael Ashborn"
+- Acolyte / Hermit: Spiritual epithets — "Brother Vorath", "Sundew", "Witness to the Flame"
+- Entertainer: Memorable alias — "Silvertongue", "Dazzle Moonwhisper"
+
+CONCEPT ECHO (secondary, subtle):
+- Shadow/stealth → dark syllables (Vex, Ash, Nox, Shade, Umbra)
+- Fire/destruction → hard consonants (Kael, Pyrr, Cinder, Blaze)
+- Nature/beast → organic sounds (Briar, Thorn, Moss, Fern)
+- Knowledge/arcane → scholarly resonance (Vael, Grix, arcane epithets)
+- Honor/warrior → strong and direct (Brynn, Thane, Forge, Steel)
+
+NEVER name a character:
+- A direct translation of the concept (concept "batman" → NOT "Batman Darkwing")
+- A generic fantasy cliché (NOT "Shadowblade", "Darkelf", "Firemage")
+- The same name verbatim from the concept prompt
+
 === REAL EXAMPLES OF CREATIVE SPECIES MATCHING ===
 
-"Batman" → Tiefling Shadow Monk/Rogue: Darkvision 120ft for night operations, fire resistance (explosions), Shadow Step for teleporting between shadows, Stunning Strike for non-lethal takedowns, Sneak Attack for precise strikes.
+"Batman" → Tiefling Shadow Monk/Rogue: Darkvision 120ft for night operations, fire resistance (explosions), Shadow Step for teleporting between shadows.
+Name: "Umbrix Kael" — infernal tiefling name, dark syllables echo the shadow concept.
 
-"Iron Man" → Rock Gnome Artificer/Fighter: Tinker trait to build gadgets, Artificer infusions for magical armor, Action Surge for burst damage, INT-based casting for genius inventor feel.
+"Iron Man" → Rock Gnome Artificer/Fighter: Tinker trait to build gadgets, Artificer infusions for magical armor.
+Name: "Fizwick Cogsworth" — gnomish inventor name.
 
-"Elsa (Frozen)" → Air or Water Genasi Sorcerer: Innate elemental magic, Constitution-based innate casting, Draconic/Storm Sorcery for ice and cold themes, natural connection to elemental power.
+"Elsa (Frozen)" → Air or Water Genasi Sorcerer: Innate elemental magic, Draconic/Storm Sorcery for ice and cold themes.
+Name: "Nerith Crystallis" — water genasi with fey-touched frost echo.
 
-"Deadpool" → Changeling Rogue/Fighter: Shapeshifting for disguises and chaos, Action Surge for frantic combat, Sneak Attack for lethal precision, proficiency in Deception and Performance.
+"Deadpool" → Changeling Rogue/Fighter: Shapeshifting for disguises and chaos.
+Name: "Vestige" — ambiguous changeling alias.
 
-"Cruella de Vil" → Tiefling Warlock: Hellish Rebuke when crossed, darkness spell for dramatic entrances, Pact of the Chain for a familiar, high Charisma for commanding presence.
-
-"Jason Bourne" → Drow Rogue/Fighter: Superior darkvision for covert ops, innate Faerie Fire for tracking, martial weapon proficiency, expertise in Stealth and Athletics.
-
-"Gandalf" → Aasimar or Firbolg Wizard: Healing Hands or Hidden Step for mysterious power, high-level spell access, ancient wisdom embodied in racial traits.
-
-"Wolverine" → Shifter Barbarian: Shifting for feral transformation (temporary HP, natural weapons), Rage for berserker fury, unarmored defense, relentless endurance.
+"Wolverine" → Shifter Barbarian: Shifting for feral transformation.
+Name: "Ashclaw" — primal shifter name with bestial edge.
 
 === OUTPUT FORMAT ===
 
@@ -197,7 +248,7 @@ Return ONLY the JSON object, nothing else.`;
 
 const PLAY_GUIDE_PROMPT = `You are an expert D&D dungeon master helping a player understand how to play their new character effectively.
 
-Based on the provided character data, generate a comprehensive play guide with these sections:
+Based on the provided character data, generate a play guide with these sections:
 
 ## COMBAT TACTICS
 - Optimal combat strategy for this character
@@ -215,23 +266,13 @@ Based on the provided character data, generate a comprehensive play guide with t
 - Character development arcs and growth opportunities
 - Example dialogue and reactions to common scenarios
 
-## LEVELING ROADMAP
-For each level from current to 20:
-- Recommended ability score improvements at each ASI level
-- Feat recommendations with explanations
-- Spell selections for upcoming levels (if spellcaster)
-- Multiclass suggestions if beneficial (explain why/why not)
-- Key power spikes and what unlocks at each level
-- Equipment upgrade priorities
-
 ## TIPS FOR NEW PLAYERS
-(Include this section only for levels 1-3)
-- Basic D&D mechanics explained
-- How to read your character sheet
-- Common beginner mistakes to avoid
-- Helpful resources for learning more
+(Include this section ONLY for characters at levels 1-3)
+- Basic D&D mechanics explained for this specific class
+- Common beginner mistakes to avoid with this build
+- How to read the most important parts of your character sheet
 
-Return well-formatted markdown text with clear headers (use ##) and bullet points. Be specific and actionable.`;
+Return well-formatted markdown text with clear headers (use ##) and bullet points. Be specific and actionable. Do NOT include a leveling roadmap or feat progression — that is generated separately on demand.`;
 
 async function generatePortrait(
   visualDescription: string,
@@ -306,7 +347,7 @@ async function generatePlayGuide(
   try {
     console.log('Starting play guide generation for:', characterName);
 
-    const userPrompt = `Generate a comprehensive play guide for this D&D 5e character:\n\nCHARACTER DATA:\n${JSON.stringify(characterData, null, 2)}\n\nCreate a detailed, actionable play guide that will help the player understand how to play this character effectively in both combat and roleplay situations.`;
+    const userPrompt = `Generate a play guide for this D&D 5e character:\n\nCHARACTER DATA:\n${JSON.stringify(characterData, null, 2)}\n\nCreate a focused, actionable play guide covering combat tactics and roleplay guidance for this specific character.`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -321,7 +362,7 @@ async function generatePlayGuide(
           { role: 'user', content: userPrompt }
         ],
         temperature: 0.7,
-        max_tokens: 6000,
+        max_tokens: 3500,
       }),
     });
 
@@ -444,7 +485,7 @@ serve(async (req) => {
       );
     }
 
-    const userPrompt = `Create a D&D 5e character for the ${ruleset} ruleset at level ${level}.\n\nCharacter concept: "${concept}"\n\nGenerate a complete, playable character with all stats, equipment, features, and backstory. Make sure the character fits the concept creatively while being mechanically sound.`;
+    const userPrompt = `Create a D&D 5e character for the ${ruleset} ruleset at level ${level}.\n\nCharacter concept: "${concept}"\n\nGenerate a complete, playable character with all stats, equipment, features, and backstory. Make sure the character fits the concept creatively while being mechanically sound. Pay special attention to the naming guidelines — the name must feel authentic to the species and background first.`;
 
     console.log('Generating character with concept:', concept, 'level:', level, 'ruleset:', ruleset);
 
