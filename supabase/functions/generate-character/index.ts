@@ -688,7 +688,7 @@ serve(async (req) => {
           .update({ status: 'complete', generation_progress: 100 })
           .eq('id', savedCharacter.id);
       }
-    })());
+    })();
 
     return new Response(
       JSON.stringify({ success: true, character: savedCharacter, portraitGenerating: true, playGuideGenerating: true }),
