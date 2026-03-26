@@ -628,7 +628,8 @@ serve(async (req) => {
       characterData.appearance?.description ||
       `A ${characterData.race} ${characterData.class} named ${characterData.name}`;
 
-    EdgeRuntime.waitUntil((async () => {
+    // Fire-and-forget background tasks
+    (async () => {
       try {
         await updateProgress(supabase, characterId, 60);
 
