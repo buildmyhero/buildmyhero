@@ -628,7 +628,8 @@ serve(async (req) => {
       characterData.appearance?.description ||
       `A ${characterData.race} ${characterData.class} named ${characterData.name}`;
 
-    EdgeRuntime.waitUntil((async () => {
+    // Fire-and-forget background tasks
+    (async () => {
       try {
         await updateProgress(supabase, characterId, 60);
 
@@ -687,7 +688,7 @@ serve(async (req) => {
           .update({ status: 'complete', generation_progress: 100 })
           .eq('id', savedCharacter.id);
       }
-    })());
+    })();
 
     return new Response(
       JSON.stringify({ success: true, character: savedCharacter, portraitGenerating: true, playGuideGenerating: true }),
